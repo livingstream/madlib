@@ -486,13 +486,13 @@ def __db_install(schema, dbrev, testcase):
             __info("* Schema %s already exists" % schema.upper(), True)
             __info("* Installer will rename it to %s" % temp_schema.upper(), True)
             __info("***************************************************************************", True)
-            __info("Would you like to continue? [Y/N]", True)
-            go = raw_input('>>> ').upper()
-            while not go in ('Y', 'YES', 'N', 'NO'):
-                go = raw_input('Yes or No >>> ').upper()
-            if go in ('N', 'NO'):
-                __info('Installation stopped.', True)
-                return
+            #__info("Would you like to continue? [Y/N]", True)
+            #go = raw_input('>>> ').upper()
+            #while not go in ('Y', 'YES', 'N', 'NO'):
+            #    go = raw_input('Yes or No >>> ').upper()
+            #if go in ('N', 'NO'):
+            #    __info('Installation stopped.', True)
+            #    return
 
             # Rename MADlib schema
             __db_rename_schema(schema, temp_schema)

@@ -1,0 +1,121 @@
+m4_include(`SQLCommon.m4')
+
+DROP TYPE IF EXISTS MADLIB_SCHEMA.gibbs_result CASCADE;
+CREATE TYPE MADLIB_SCHEMA.gibbs_result AS (
+    truth DOUBLE PRECISION[]
+);
+
+CREATE OR REPLACE FUNCTION MADLIB_SCHEMA.gibbs_step_transition(
+    DOUBLE PRECISION[],
+    DOUBLE PRECISION[],
+    DOUBLE PRECISION,
+    DOUBLE PRECISION,
+    DOUBLE PRECISION,
+    DOUBLE PRECISION,
+    DOUBLE PRECISION,
+    DOUBLE PRECISION[])
+RETURNS DOUBLE PRECISION[]
+AS 'MODULE_PATHNAME'
+LANGUAGE C IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION MADLIB_SCHEMA.gibbs_step_merge_states(
+    state1 DOUBLE PRECISION[],
+    state2 DOUBLE PRECISION[])
+RETURNS DOUBLE PRECISION[]
+AS 'MODULE_PATHNAME'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION MADLIB_SCHEMA.gibbs_step_final(
+    state DOUBLE PRECISION[])
+RETURNS DOUBLE PRECISION[]
+AS 'MODULE_PATHNAME'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION MADLIB_SCHEMA.internal_gibbs_result(DOUBLE PRECISION[])
+RETURNS MADLIB_SCHEMA.gibbs_result AS
+'MODULE_PATHNAME'
+LANGUAGE c IMMUTABLE STRICT;
+
+DROP AGGREGATE IF EXISTS MADLIB_SCHEMA.gibbs_step(
+    DOUBLE PRECISION[],
+    DOUBLE PRECISION,
+    DOUBLE PRECISION,
+    DOUBLE PRECISION,
+    DOUBLE PRECISION,
+    DOUBLE PRECISION,
+    DOUBLE PRECISION[]
+) CASCADE;
+
+CREATE AGGREGATE MADLIB_SCHEMA.gibbs_step(
+    /* clause column */ DOUBLE PRECISION[], 
+    /* weight column */ DOUBLE PRECISION, 
+    /* component column */ DOUBLE PRECISION,
+    /* num of atoms */ DOUBLE PRECISION,
+    /* clause storage */ DOUBLE PRECISION,
+    /* query id */ DOUBLE PRECISION,
+    /* previous state */ DOUBLE PRECISION[]) (
+    STYPE=DOUBLE PRECISION[],
+    SFUNC=MADLIB_SCHEMA.gibbs_step_transition,
+    m4_ifdef(`__POSTGRESQL__', `', `prefunc=MADLIB_SCHEMA.gibbs_step_merge_states,')
+    FINALFUNC=MADLIB_SCHEMA.gibbs_step_final,
+    INITCOND='{0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}'
+);
+
+CREATE OR REPLACE FUNCTION MADLIB_SCHEMA.compute_gibbs(
+    "source" TEXT,
+    "clause" TEXT,
+    "weight" TEXT,
+    "component" TEXT,
+    "num_atom" INTEGER,
+    "state_size" INTEGER,
+    "query" INTEGER)
+RETURNS INTEGER
+AS $$PythonFunction(probKB, gibbs, compute_gibbs)$$
+LANGUAGE plpythonu VOLATILE
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
+
+DROP FUNCTION  IF EXISTS MADLIB_SCHEMA.qdr_infer(TEXT, INTEGER, INTEGER);
+CREATE FUNCTION MADLIB_SCHEMA.qdr_infer(
+     clause_tbl   TEXT, 
+     num_hop      INTEGER,
+     querytbl     INTEGER
+) RETURNS REAL AS $$
+PythonFunction(probKB, gibbs, qdr_infer)
+$$ LANGUAGE plpythonu
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
+
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.qdr_infer_eval(TEXT, TEXT, INTEGER, INTEGER);
+CREATE FUNCTION MADLIB_SCHEMA.qdr_infer_eval(clause_tbl TEXT, result_tbl TEXT, num_hop INTEGER, num_test INTEGER) 
+RETURNS TEXT AS $$
+PythonFunction(probKB, gibbs, qdr_infer_eval)
+$$ LANGUAGE plpythonu
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
+
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.batch_infer(TEXT, TEXT);
+CREATE FUNCTION MADLIB_SCHEMA.batch_infer(
+     clause_tbl   TEXT,
+     truth_tbl    TEXT
+) RETURNS TEXT AS $$
+PythonFunction(probKB, gibbs, batch_infer)
+$$ LANGUAGE plpythonu
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
+
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.init(TEXT);
+CREATE FUNCTION MADLIB_SCHEMA.init(
+     clause_tbl   TEXT
+) RETURNS VOID AS $$
+PythonFunction(probKB, gibbs, init)
+$$ LANGUAGE plpythonu
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
+
+
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.unnest_rownum(anyarray);
+CREATE OR REPLACE FUNCTION MADLIB_SCHEMA.unnest_rownum(anyarray)
+RETURNS TABLE (lit INT, prob anyelement) as $$
+  begin lit := 1;
+    foreach prob in array $1 loop
+      return next;
+      lit := lit + 1;
+    end loop;
+    return;
+end $$ language plpgsql;

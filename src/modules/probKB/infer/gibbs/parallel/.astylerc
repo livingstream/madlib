@@ -1,0 +1,11 @@
+--style=stroustrup
+--indent=spaces=3
+--indent-preprocessor
+--indent-col1-comments
+--pad-oper
+--unpad-paren
+--pad-header
+--align-pointer=name
+--align-reference=name
+--add-brackets
+--convert-tabs
