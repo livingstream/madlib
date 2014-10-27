@@ -4,7 +4,7 @@
  *
  *//* ----------------------------------------------------------------------- */
 #define gibbs true /* Gibbs or Metropolis-Hasting */
-#define parallel true /* parallel or sequential */
+#define parallel false /* parallel or sequential */
 
 #include <iostream>
 #include <dbconnector/dbconnector.hpp>
@@ -229,7 +229,7 @@ gibbs_step_final::run(AnyType &args)
        #if parallel 
            GibbsGist instance(state.numAtoms, numClauses, varState);
        #else
-           gibbs instance(state.numAtoms, numClauses, varState);
+           Gibbs instance(state.numAtoms, numClauses, varState);
        #endif
     #else
        #if parallel 

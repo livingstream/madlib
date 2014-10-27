@@ -6,6 +6,23 @@ GibbsScheduler::GibbsScheduler(size_t chainId_, size_t inNumAtoms, GibbsGist *in
    chainId = chainId_;
    numAtoms = inNumAtoms;
    st = inState;
+
+   for (size_t i = 0; i < st->truthValues.size(); i++) {
+     bool tv = genTruthValueForProb(0.5);
+     st->truthValues[i][chainId] = tv;
+   }
+
+   for (size_t i = 0; i < st->numClauses; i++) {
+      GroundClause *gndClause = st->varst->getGndClause(i);
+      for (size_t j = 0; j < gndClause->getNumGroundPredicates(); j++) {
+         const size_t atomIdx = abs(st->varst->getAtomInClause(j, i)) - 1;
+         const bool sense = gndClause->getGroundPredicateSense(j);
+            if (st->truthValues[atomIdx][chainId] == sense) {
+               st->numTrueLits[i][chainId]++;
+            }
+      }
+   }
+
    for (size_t i = 0; i < numAtoms; i++) {
       st->affectedGndPredIndices[chainId].push_back(i);
    }
@@ -123,6 +140,9 @@ void GibbsScheduler::updateWtsForGndPreds(vector<size_t> &gndPredIndices)
             } else if (wt < 0) {
                wtIfNoChange += fabs(wt);
             }
+         } else {
+           cout << "unexpected error !!!!!!!!!!!!!!!" << endl;
+           exit(1);
          }
       } // for each ground clause that gndPred appears in
 

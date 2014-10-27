@@ -88,9 +88,7 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, querytbl, **kwargs):
     plpy.execute("""CREATE TEMP TABLE atoms(id INT);
                     CREATE TEMP SEQUENCE serial START 1;
                     WITH RECURSIVE path_cte (id, depth, path, cycle) as 
-                    ( SELECT distinct on (src) src, 0, ARRAY[""" + str(querytbl) + """], false
-                       FROM atom_path
-                       WHERE src = """ + str(querytbl) + """
+                    (  SELECT """ + str(querytbl) + """, 0, ARRAY[""" + str(querytbl) + """], false
                        UNION ALL
                        SELECT nxt.des, depth+1, path || nxt.des, nxt.des = ANY(path)
                        FROM atom_path nxt, path_cte prv
@@ -98,7 +96,7 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, querytbl, **kwargs):
                               AND depth < """ + str(num_hop) + """
                     )
                     INSERT INTO atoms
-                    SELECT id FROM path_cte WHERE cycle = false LIMIT 1000""")
+                    SELECT id FROM path_cte WHERE cycle = false LIMIT 500""")
     n3=time.time() 
     plpy.notice("L2: " + str(n3-n2))
    

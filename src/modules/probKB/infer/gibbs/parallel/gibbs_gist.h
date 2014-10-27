@@ -40,8 +40,6 @@ public:
 
    void randomInitGndPredsTruthValues();
 
-   void initNumTrueLits();
-
    void infer();
 
    void finalize();
