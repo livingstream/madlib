@@ -18,7 +18,6 @@ void GibbsGist::init()
 {
    randomInitGndPredsTruthValues();
    initTruthValuesAndWts();
-   initNumTrueLits();
 }
 
 void GibbsGist::initTruthValuesAndWts()
@@ -50,28 +49,6 @@ void GibbsGist::randomInitGndPredsTruthValues()
    truthValues.resize(numAtoms);
    for (size_t i = 0; i < numAtoms; i++) {
       truthValues[i].resize(numChains, false);
-   }
-   for (size_t c = 0; c < numChains; c++) {
-      for (size_t i = 0; i < truthValues.size(); i++) {
-         bool tv = GibbsScheduler::genTruthValueForProb(0.5);
-         truthValues[i][c] = tv;
-      }
-   }
-}
-
-void GibbsGist::initNumTrueLits()
-{
-   for (size_t i = 0; i < numClauses; i++) {
-      GroundClause *gndClause = varst->getGndClause(i);
-      for (size_t j = 0; j < gndClause->getNumGroundPredicates(); j++) {
-         const size_t atomIdx = abs(varst->getAtomInClause(j, i)) - 1;
-         const bool sense = gndClause->getGroundPredicateSense(j);
-         for (size_t c = 0; c < numChains; c++) {
-            if (truthValues[atomIdx][c] == sense) {
-               numTrueLits[i][c]++;
-            }
-         }
-      }
    }
 }
 
