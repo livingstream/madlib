@@ -3,6 +3,8 @@
 #include <vector>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>     
+#include <sstream>
 #include "../../common/timer.h"
 #include "gibbs_cgla.h"
 #include "../../state/groundclause.h"
@@ -10,6 +12,7 @@
 #include "../gelmanconvergencetest.h"
 #include "../gibbsparams.h"
 #include <iostream>
+#include <fstream>
 using namespace std;
 
 class GibbsGist;
@@ -17,16 +20,33 @@ class GibbsGist;
 class GibbsScheduler {
 public:
    size_t numAtoms;
-   size_t chainId;
+   size_t numClauses;
+   const size_t chainId;
    GibbsGist *st;
+   ofstream f; 
 
-   GibbsScheduler(size_t chainId_, size_t inNumAtoms, GibbsGist *inState);
+   vector<bool> loc_truthValues;
+   vector<bool> loc_wtsWhenFalse;
+   vector<bool> loc_wtsWhenTrue;
+   vector<double> loc_numTrue;
+   vector<double> loc_numTrueTemp;
+   vector<bool> loc_affectedGndPredFlag;
+   vector<int> loc_numTrueLits;
+   vector<size_t> loc_affectedGndPredIndices;
+   
+   GibbsScheduler(size_t chainId_, size_t inNumAtoms, size_t inNumClauses, GibbsGist *inState);
 
    ~GibbsScheduler();
+ 
+   void init();
+
+   void initTruthValuesAndWts();
+
+   void randomInitGndPredsTruthValues();
 
    static void  *callMemberFunction(void *arg);
 
-   static bool genTruthValueForProb(const double &p);
+   bool genTruthValueForProb(const double &p);
 
    double getProbabilityOfPred(const size_t &predIdx);
 

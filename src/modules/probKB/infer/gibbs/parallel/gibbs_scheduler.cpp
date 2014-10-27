@@ -1,42 +1,74 @@
 #include "gibbs_gist.h"
 #include "gibbs_scheduler.h"
+#include <stdint.h>
 
-GibbsScheduler::GibbsScheduler(size_t chainId_, size_t inNumAtoms, GibbsGist *inState)
-{
-   chainId = chainId_;
+GibbsScheduler::GibbsScheduler(size_t chainId_, size_t inNumAtoms, size_t inNumClauses, GibbsGist *inState)
+ : chainId(chainId_) {
    numAtoms = inNumAtoms;
+   numClauses = inNumClauses;
    st = inState;
-
-   for (size_t i = 0; i < st->truthValues.size(); i++) {
-     bool tv = genTruthValueForProb(0.5);
-     st->truthValues[i][chainId] = tv;
-   }
-
-   for (size_t i = 0; i < st->numClauses; i++) {
-      GroundClause *gndClause = st->varst->getGndClause(i);
-      for (size_t j = 0; j < gndClause->getNumGroundPredicates(); j++) {
-         const size_t atomIdx = abs(st->varst->getAtomInClause(j, i)) - 1;
-         const bool sense = gndClause->getGroundPredicateSense(j);
-            if (st->truthValues[atomIdx][chainId] == sense) {
-               st->numTrueLits[i][chainId]++;
-            }
-      }
-   }
+   init();
+   /*stringstream ss;
+   ss << "log" << chainId_;
+   string str = ss.str();
+   f.open(str.c_str(), ios::out | ios::trunc);
+   
+   f << "initialized truth value = " << loc_truthValues[0] << endl;
+   f << "numTrueLits = " << loc_numTrueLits[0] << endl;*/     
 
    for (size_t i = 0; i < numAtoms; i++) {
-      st->affectedGndPredIndices[chainId].push_back(i);
+      loc_affectedGndPredIndices.push_back(i);
    }
-   updateWtsForGndPreds(st->affectedGndPredIndices[chainId]);
-   st->affectedGndPredIndices[chainId].clear();
+   updateWtsForGndPreds(loc_affectedGndPredIndices);
+   loc_affectedGndPredIndices.clear();
 }
 
 GibbsScheduler::~GibbsScheduler()
 {
 }
 
-void *GibbsScheduler::callMemberFunction(void *arg)
+
+void GibbsScheduler::init()
 {
-   return ((GibbsScheduler *)arg)->performGibbsStep();
+   initTruthValuesAndWts();
+   randomInitGndPredsTruthValues();
+}
+
+void GibbsScheduler::initTruthValuesAndWts()
+{
+   loc_wtsWhenFalse.resize(numAtoms,0);
+   loc_wtsWhenTrue.resize(numAtoms,0);
+   loc_numTrue.resize(numAtoms,0);
+   loc_numTrueTemp.resize(numAtoms,0);
+   loc_affectedGndPredFlag.resize(numAtoms, false);
+   loc_truthValues.resize(numAtoms, false);
+   loc_numTrueLits.resize(numClauses, 0);
+}
+
+void GibbsScheduler::randomInitGndPredsTruthValues()
+{
+   for (size_t i = 0; i < numAtoms; i++) {
+     bool tv = genTruthValueForProb(0.5);
+     loc_truthValues[i] = tv;
+   }
+
+   for (size_t i = 0; i < numClauses; i++) {
+      GroundClause *gndClause = st->varst->getGndClause(i);
+      for (size_t j = 0; j < gndClause->getNumGroundPredicates(); j++) {
+         const size_t atomIdx = abs(st->varst->getAtomInClause(j, i)) - 1;
+         const bool sense = gndClause->getGroundPredicateSense(j);
+         if (loc_truthValues[atomIdx]== sense) {
+             loc_numTrueLits[i]++;
+         }
+      }
+   }
+}
+
+
+void *GibbsScheduler::callMemberFunction(void *arg)
+{  
+   ((GibbsScheduler *)arg)->performGibbsStep();
+   pthread_exit(NULL);
 }
 
 bool GibbsScheduler::genTruthValueForProb(const double &p)
@@ -47,9 +79,10 @@ bool GibbsScheduler::genTruthValueForProb(const double &p)
    if (p == 0.0) {
       return false;
    }
-   bool r = random() <= p * RAND_MAX;
+   bool r= random() <= p * RAND_MAX;
    return r;
 }
+ 
 
 /**
  * Computes the probability of a ground predicate in a chain.
@@ -57,7 +90,7 @@ bool GibbsScheduler::genTruthValueForProb(const double &p)
 double GibbsScheduler::getProbabilityOfPred(const size_t &predIdx)
 {
    return 1.0 / (1.0 +
-                 exp(st->wtsWhenFalse[predIdx][chainId] - st->wtsWhenTrue[predIdx][chainId]));
+                 exp(loc_wtsWhenFalse[predIdx] - loc_wtsWhenTrue[predIdx]));
 }
 
 void *GibbsScheduler::performGibbsStep()
@@ -67,25 +100,23 @@ void *GibbsScheduler::performGibbsStep()
      sample++; 
      for (size_t i = 0; i < numAtoms; i++) {
         bool newAssign = genTruthValueForProb(getProbabilityOfPred(i));
-
-        // Truth values are stored differently for multi-chain
-        bool truthValue = st->truthValues[i][chainId];
-        // If gndPred is flipped, do updates & find all affected gndPreds
+        bool truthValue = loc_truthValues[i];
         if (newAssign != truthValue) {
-           st->truthValues[i][chainId] = newAssign;
-           st->affectedGndPredIndices[chainId].clear();
-           std::fill(st->affectedGndPredFlag[chainId].begin(), st->affectedGndPredFlag[chainId].end(), false);
+           loc_truthValues[i] = newAssign;
+           loc_affectedGndPredIndices.clear();
+           std::fill(loc_affectedGndPredFlag.begin(), loc_affectedGndPredFlag.end(), false);
            gndPredFlippedUpdates(i);
-           updateWtsForGndPreds(st->affectedGndPredIndices[chainId]);
+           updateWtsForGndPreds(loc_affectedGndPredIndices);
         }
         if (newAssign) {
-            st->numTrueTemp[i][chainId]++;
+            loc_numTrueTemp[i]+=1;
             if(!st->gGla->burnIn) {
-              st->numTrue[i][chainId]++;
+              loc_numTrue[i]++;
             }
         }
      }
   }
+
   return NULL;
 }
 
@@ -113,7 +144,7 @@ void GibbsScheduler::updateWtsForGndPreds(vector<size_t> &gndPredIndices)
 
          GroundClause *gndClause = st->varst->getGndClause(gndClauseIdx);
          wt = gndClause->wt_;
-         int numSatLiterals = st->numTrueLits[gndClauseIdx][chainId];
+         int numSatLiterals = loc_numTrueLits[gndClauseIdx];
          if (numSatLiterals > 1) {
             if (wt > 0) {
                wtIfNoChange += wt;
@@ -123,7 +154,7 @@ void GibbsScheduler::updateWtsForGndPreds(vector<size_t> &gndPredIndices)
             if (wt > 0) {
                wtIfNoChange += wt;
             }
-            bool truthValue = st->truthValues[gndPredIndices[g]][chainId];
+            bool truthValue = loc_truthValues[gndPredIndices[g]];
             if (truthValue == sense) {
                if (wt < 0) {
                   wtIfInverted += fabs(wt);
@@ -141,18 +172,18 @@ void GibbsScheduler::updateWtsForGndPreds(vector<size_t> &gndPredIndices)
                wtIfNoChange += fabs(wt);
             }
          } else {
-           cout << "unexpected error !!!!!!!!!!!!!!!" << endl;
+           cout << "unexpected error !!!!!!!!!!!!!!! with chainId = " << chainId << endl;
            exit(1);
          }
       } // for each ground clause that gndPred appears in
 
       // Clause info is stored differently for multi-chain
-      if (st->truthValues[gndPredIndices[g]][chainId]) {
-         st->wtsWhenTrue[gndPredIndices[g]][chainId] = wtIfNoChange;
-         st->wtsWhenFalse[gndPredIndices[g]][chainId] = wtIfInverted;
+      if (loc_truthValues[gndPredIndices[g]]) {
+         loc_wtsWhenTrue[gndPredIndices[g]] = wtIfNoChange;
+         loc_wtsWhenFalse[gndPredIndices[g]] = wtIfInverted;
       } else {
-         st->wtsWhenFalse[gndPredIndices[g]][chainId] = wtIfNoChange;
-         st->wtsWhenTrue[gndPredIndices[g]][chainId] = wtIfInverted;
+         loc_wtsWhenFalse[gndPredIndices[g]] = wtIfNoChange;
+         loc_wtsWhenTrue[gndPredIndices[g]] = wtIfInverted;
       }
    } // for each ground predicate whose MB has changed
 }
@@ -160,7 +191,7 @@ void GibbsScheduler::updateWtsForGndPreds(vector<size_t> &gndPredIndices)
 
 void GibbsScheduler::gndPredFlippedUpdates(const size_t &gndPredIdx)
 {
-   st->affectedGndPredIndices[chainId].push_back(gndPredIdx);
+   loc_affectedGndPredIndices.push_back(gndPredIdx);
 
    vector<size_t> &negGndClauses =
       st->varst->getNegOccurenceVector(gndPredIdx + 1);
@@ -180,18 +211,17 @@ void GibbsScheduler::gndPredFlippedUpdates(const size_t &gndPredIdx)
          sense = true;
       }
       gndClause = st->varst->getGndClause(gndClauseIdx);
-
-      if (st->truthValues[gndPredIdx][chainId] == sense) {
-         st->numTrueLits[gndClauseIdx][chainId]++;
+      if (loc_truthValues[gndPredIdx] == sense) {
+         loc_numTrueLits[gndClauseIdx]++;
       } else {
-         st->numTrueLits[gndClauseIdx][chainId]--;
+         loc_numTrueLits[gndClauseIdx]--;
       }
 
       for (size_t j = 0; j < gndClause->getNumGroundPredicates(); j++) {
          size_t predIndex = abs(gndClause->getGroundPredicateIndex(j)) - 1;
-         if (!st->affectedGndPredFlag[chainId][ predIndex ]) {
-            st->affectedGndPredIndices[chainId].push_back(predIndex);
-            st->affectedGndPredFlag[chainId][predIndex] = true;
+         if (!loc_affectedGndPredFlag[ predIndex ]) {
+            loc_affectedGndPredIndices.push_back(predIndex);
+            loc_affectedGndPredFlag[predIndex] = true;
          }
 
       }

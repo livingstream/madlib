@@ -12,7 +12,7 @@ GibbsCGLA::GibbsCGLA(size_t numAtoms_, size_t numChains_, GibbsGist *state_)
    currentTimeSec = 0;
    para = new GibbsParams();
    state = state_;
-   burnIn = (para->burnMaxSteps > 0) ? true : false;;
+   burnIn = (para->burnMaxSteps > 0) ? true : false;
    initConvergenceTests();
 }
 
@@ -32,6 +32,13 @@ bool GibbsCGLA::shouldIterate()
    currentTimeSec = timer.time();
    secondsElapsed = currentTimeSec - startTimeSec;
 
+   for(size_t i = 0; i < numAtoms; i++) {
+       for (size_t j = 0; j < numChains; j++) {
+	    state->numTrueTemp[i][j] = state->gibbsVec[j]->loc_numTrueTemp[i];
+            state->gibbsVec[j]->loc_numTrueTemp[i] = 0;
+       }
+   }
+
    // Add current truth values to the convergence testers
    for (size_t i = 0; i < numAtoms; i++) {
       //WARNING: implicit cast from bool* to double*
@@ -40,10 +47,6 @@ bool GibbsCGLA::shouldIterate()
       } else {
          gibbsConvergenceTests[i]->appendNewValues(state->numTrueTemp[i], para->samplesPerTest);
       }
-   }
-
-   for(size_t i = 0; i < state->numTrueTemp.size(); i++) {
-      std::fill(state->numTrueTemp[i].begin(), state->numTrueTemp[i].end(), 0);
    }
 
    if (burnIn) {

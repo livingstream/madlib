@@ -17,7 +17,7 @@ public:
    GibbsCGLA *gGla;
    vector<GibbsCGLA *> glaVec;
    vector<GibbsScheduler *> gibbsVec;
-   vector<vector<bool> > truthValues;
+   vector<vector< bool> > truthValues;
    vector<vector<bool> > wtsWhenFalse;
    vector<vector<bool> > wtsWhenTrue;
    vector<vector<double> > numTrue;
@@ -27,6 +27,7 @@ public:
    vector<vector<size_t> > affectedGndPredIndices;
    VariableState *varst;
    vector<double> probs;
+
    size_t numAtoms;
    size_t numClauses;
    size_t numChains;
@@ -34,12 +35,8 @@ public:
 public:
    GibbsGist(size_t numAtoms_, size_t numClauses_, VariableState *varst_);
 
-   void init();
-
-   void initTruthValuesAndWts();
-
-   void randomInitGndPredsTruthValues();
-
+   void initTruthValues();
+   
    void infer();
 
    void finalize();

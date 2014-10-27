@@ -5,7 +5,7 @@ CFLAGS = -Wall -c $(DEBUG)
 LFLAGS = -Wall $(DEBUG)
 
 test : $(OBJS)
-	$(CC) $(LFLAGS) $(OBJS) -o test -lpthread
+	$(CC) $(LFLAGS) $(OBJS) -o test -lpthread 
 
 gibbs_scheduler.o : gibbs_scheduler.h gibbs_scheduler.cpp
 	$(CC) $(CFLAGS) gibbs_scheduler.cpp
