@@ -84,8 +84,8 @@ PythonFunction(probKB, gibbs, qdr_infer)
 $$ LANGUAGE plpythonu
 m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
 
-DROP FUNCTION IF EXISTS MADLIB_SCHEMA.qdr_infer_eval(TEXT, TEXT, INTEGER, INTEGER);
-CREATE FUNCTION MADLIB_SCHEMA.qdr_infer_eval(clause_tbl TEXT, result_tbl TEXT, num_hop INTEGER, num_test INTEGER) 
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.qdr_infer_eval(TEXT, TEXT);
+CREATE FUNCTION MADLIB_SCHEMA.qdr_infer_eval(clause_tbl TEXT, result_tbl TEXT) 
 RETURNS TEXT AS $$
 PythonFunction(probKB, gibbs, qdr_infer_eval)
 $$ LANGUAGE plpythonu
