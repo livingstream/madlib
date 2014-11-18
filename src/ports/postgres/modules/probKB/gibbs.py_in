@@ -301,7 +301,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                           over (partition by comp order by abs(prob-truth) desc) as rownum 
                           FROM {result_tbl}
                           WHERE rownum <= 10)
-                    GROUP BY comp""")
+                    GROUP BY comp""".format(result_tbl = result_tbl))
 
     rv = plpy.execute('SELECT atoms FROM selected_atoms WHERE comp = ' + str(large))
     largec_test_nodes = rv[0]['atoms']
