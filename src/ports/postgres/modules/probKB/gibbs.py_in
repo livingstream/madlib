@@ -303,6 +303,10 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                     WHERE rownum <= 10
                     GROUP BY comp""".format(result_tbl = result_tbl))
 
+    plpy.execute("""DELETE FROM {result_tbl} 
+                    WHERE lit NOT IN (SELECT UNNEST(atoms) FROM selected_atoms)
+                 """.format(result_tbl = result_tbl))
+
     rv = plpy.execute('SELECT atoms FROM selected_atoms WHERE comp = ' + str(large))
     largec_test_nodes = rv[0]['atoms']
 
