@@ -3,27 +3,12 @@
  * @file inference.cpp
  *
  *//* ----------------------------------------------------------------------- */
-#define gibbs true /* Gibbs or Metropolis-Hasting */
-#define parallel false /* parallel or sequential */
-
 #include <iostream>
 #include <dbconnector/dbconnector.hpp>
 #include <modules/shared/HandleTraits.hpp>
 #include <modules/probKB/infer/state/variablestate.h>
-
-#if gibbs
-    #if parallel
-        #include <modules/probKB/infer/gibbs/parallel/gibbs_gist.h>
-    #else 
-        #include <modules/probKB/infer/gibbs/sequential/gibbs.cpp>
-    #endif
-#else 
-    #if parallel
-        #include <modules/probKB/infer/metropolisHasting/parallel/metropolis-hasting_gist.h>
-    #else 
-        #include <modules/probKB/infer/metropolisHasting/sequential/metropolis-hasting.cpp>
-    #endif
-#endif
+#include <modules/probKB/infer/gibbs/parallel/gibbs_gist.h>
+#include <modules/probKB/infer/gibbs/sequential/gibbs.cpp>
 
 #include "inference.hpp"
 #include <unistd.h>
@@ -197,7 +182,8 @@ gibbs_step_final::run(AnyType &args)
     size_t i = 0;
     size_t numClauses = 0;
     std::map<int, int> indexMap;
-
+    bool parallel = (abs(state.qid) % 2 == 1);
+    state.qid = (int)(state.qid / 10);
     VariableState *varState = new VariableState(state.numAtoms);
     while (i < static_cast<size_t>(state.clauses.size())) {
         GroundClause *gc = new GroundClause();
@@ -225,35 +211,28 @@ gibbs_step_final::run(AnyType &args)
     }
 
     varState->init();
-    #if gibbs 
-       #if parallel 
-           GibbsGist instance(state.numAtoms, numClauses, varState);
-       #else
-           Gibbs instance(state.numAtoms, numClauses, varState);
-       #endif
-    #else
-       #if parallel 
-           MetropolisGist instance(state.qid, state.numAtoms, numClauses, varState);
-       #else
-           Metropolis instance(state.qid, state.numAtoms, numClauses, varState);
-       #endif
-    #endif
-    instance.infer();
-    if (state.qid < 0) {
-        for (i = 0; i < state.numAtoms; i++) {
-            #if parallel
+    if(parallel) {
+       GibbsGist instance(state.numAtoms, numClauses, varState);
+       instance.infer();
+       if (state.qid < 0) {
+          for (i = 0; i < state.numAtoms; i++) {
                state.truth[i] = instance.probs[i];
-            #else
-               state.truth[i] = instance.numTrue[i];
-            #endif
+          }
+        } else {
+          state.truth[0] = instance.probs[indexMap[(int)state.qid] - 1];
         }
     } else {
-        #if parallel
-           state.truth[0] = instance.probs[indexMap[(int)state.qid] - 1];
-        #else
+       Gibbs instance(state.numAtoms, numClauses, varState);
+       instance.infer();
+       if (state.qid < 0) {
+          for (i = 0; i < state.numAtoms; i++) {
+               state.truth[i] = instance.numTrue[i];
+          }
+       } else {
            state.truth[0] = instance.numTrue[indexMap[(int)state.qid] - 1];
-        #endif
-    }
+       }
+    } 
+
     return state;
 }
 

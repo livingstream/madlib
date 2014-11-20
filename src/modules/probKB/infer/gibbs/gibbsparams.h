@@ -10,7 +10,7 @@ struct GibbsParams {
     GibbsParams() {
         numChains = 10;
         burnMinSteps = 100;
-        burnMaxSteps = 200;
+        burnMaxSteps = 100;
         minSteps = -1;
         maxSteps = 2000;
         maxSeconds = -1;
