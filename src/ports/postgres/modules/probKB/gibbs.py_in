@@ -306,7 +306,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                     FROM (SELECT comp, lit, row_number() 
                           over (partition by comp order by abs(prob-truth) desc) as rownum 
                           FROM {result_tbl}) U
-                    WHERE rownum < 10
+                    WHERE rownum < 5 
                     GROUP BY comp""".format(result_tbl = result_tbl))
 
     plpy.execute("""TRUNCATE {result_tbl} 
@@ -323,27 +323,28 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
     
     hops = [1, 2, 5, 10, 20]
     modes = [False, True]
-    for mode in modes:
-       for num_hop in hops:
-           for comp in components:
-               if comp == small:
-                  test_nodes = smallc_test_nodes
-               elif comp == medium:
-                  test_nodes = mediumc_test_nodes
-               else:
-                  test_nodes = largec_test_nodes
-               for node in test_nodes:
-                   startTime = time.time() 
-                   rv = plpy.execute("""SELECT {schema_madlib}.qdr_infer('{clause_tbl}', {num_hop}, {node}, {mode}) prob
-                                     """.format(schema_madlib = schema_madlib, clause_tbl = clause_tbl, 
-                                         num_hop = str(num_hop), node = str(node), mode = str(mode)))       
-                   prob = rv[0]['prob']
-                   rv = plpy.execute('SELECT prob FROM ground_truth WHERE atom = ' + str(node))
-                   truth = rv[0]['prob']
+    for test in range(5):
+      for mode in modes:
+         for num_hop in hops:
+             for comp in components:
+                 if comp == small:
+                    test_nodes = smallc_test_nodes
+                 elif comp == medium:
+                    test_nodes = mediumc_test_nodes
+                 else:
+                    test_nodes = largec_test_nodes
+                 for node in test_nodes:
+                     startTime = time.time() 
+                     rv = plpy.execute("""SELECT {schema_madlib}.qdr_infer('{clause_tbl}', {num_hop}, {node}, {mode}) prob
+                                       """.format(schema_madlib = schema_madlib, clause_tbl = clause_tbl, 
+                                           num_hop = str(num_hop), node = str(node), mode = str(mode)))       
+                     prob = rv[0]['prob']
+                     rv = plpy.execute('SELECT prob FROM ground_truth WHERE atom = ' + str(node))
+                     truth = rv[0]['prob']
                     
-                   duration = time.time() - startTime
-                   plpy.execute("""INSERT INTO {result_tbl} VALUES ({comp}, {node}, {num_hop}, {duration}, {prob}, {truth}, {mode})
-                                """.format(result_tbl = result_tbl, comp = str(comp), node = str(node), num_hop = str(num_hop), 
-                                           duration = str(duration), prob = str(prob), truth = str(truth), mode = str(mode)))
+                     duration = time.time() - startTime
+                     plpy.execute("""INSERT INTO {result_tbl} VALUES ({comp}, {node}, {num_hop}, {duration}, {prob}, {truth}, {mode})
+                                  """.format(result_tbl = result_tbl, comp = str(comp), node = str(node), num_hop = str(num_hop), 
+                                             duration = str(duration), prob = str(prob), truth = str(truth), mode = str(mode)))
 
     return "benchmark query driven inference is done!"
