@@ -306,7 +306,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                     FROM (SELECT comp, lit, row_number() 
                           over (partition by comp order by abs(prob-truth) desc) as rownum 
                           FROM {result_tbl}) U
-                    WHERE rownum < 5 
+                    WHERE rownum <= 5
                     GROUP BY comp""".format(result_tbl = result_tbl))
 
     plpy.execute("""TRUNCATE {result_tbl} 
