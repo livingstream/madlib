@@ -74,10 +74,11 @@ def init(schema_madlib, clause_tbl, **kwargs):
     plpy.execute('CREATE INDEX lit_cnums_indx ON lit_cnums (lit)')
 
     plpy.execute("""CREATE TEMP TABLE atom_path AS
-                    SELECT DISTINCT c1.lit src, c2.lit des
+                    SELECT DISTINCT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex
                     FROM cnum_lit c1, cnum_lit c2 
                     WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit""")
     plpy.execute('CREATE INDEX src_idx ON atom_path (src)')
+    plpy.execute('CREATE INDEX unique_idx ON atom_path (uindex)')
     
     init_comp()
     plpy.notice('init_comp finishes')
@@ -85,6 +86,51 @@ def init(schema_madlib, clause_tbl, **kwargs):
                     SET component = comp 
                     FROM  cnum_comp_tbl c2 
                     WHERE c1.cnum = c2.cnum""".format(clause_tbl = clause_tbl))
+
+
+def delta_init(schema_madlib, delta_clause_tbl, **kwargs):
+    plpy.execute("""CREATE TEMP TABLE delta_cnum_lit AS
+                    SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len 
+                    FROM {delta_clause_tbl}""".format(clause_tbl = clause_tbl))
+    plpy.execute('CREATE INDEX delta_lit_idx ON delta_cnum_lit (lit)')
+
+    plpy.execute("""INSERT INTO cnum_lit
+                    SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len 
+                    FROM {delta_clause_tbl}""".format(delta_clause_tbl = delta_clause_tbl))
+
+    plpy.execute("""CREATE TEMP TABLE new_lit AS
+                    SELECT DISTINCT abs(unnest(clause)) lit 
+                    FROM {delta_clause_tbl}""".format(delta_clause_tbl = delta_clause_tbl))
+    plpy.execute('CREATE INDEX new_lit_idx ON new_lit (lit)')
+    
+    plpy.execute("""CREATE TEMP TABLE retrive_lit AS
+                    SELECT cnum, cnum_lit.lit, len
+                    FROM cnum_lit, new_lit
+                    WHERE cnum_lit.lit = new_lit.lit""")
+    
+    plpy.execute("""DELETE
+                    FROM  lit_cnums
+                    WHERE lit in (select * from new_lit)""")
+
+    plpy.execute("""INSERT INTO lit_cnums
+                    SELECT lit, array_agg(cnum) cnums, array_agg(len) lens
+                    FROM  retrive_lit
+                    GROUP BY lit""")
+
+    plpy.execute("""CREATE TEMP TABLE delta_atom_path AS
+                    SELECT distinct c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex
+                    FROM delta_cnum_lit c1, delta_cnum_lit c2 
+                    WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit""")
+
+    plpy.execute('CREATE INDEX delta_unique_idx ON delta_atom_path (uindex)')
+
+    plpy.execute("""INSERT INTO atom_path
+                    select * 
+                    FROM delta_atom_path delta
+                    where not exists (
+                       select * from atom_path 
+                       where atom_path.uindex = delta.uindex)
+                 """)
 
 def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, **kwargs):
     plpy.notice("L0: begin ")
