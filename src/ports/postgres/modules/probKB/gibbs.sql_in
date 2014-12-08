@@ -111,6 +111,22 @@ $$ LANGUAGE plpythonu
 m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
 
 
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.inc_delta_init(TEXT);
+CREATE FUNCTION MADLIB_SCHEMA.inc_delta_init(
+     inc_delta_clause_tbl   TEXT
+) RETURNS VOID AS $$
+PythonFunction(probKB, gibbs, inc_delta_init)
+$$ LANGUAGE plpythonu
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
+
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.dec_delta_init(TEXT);
+CREATE FUNCTION MADLIB_SCHEMA.dec_delta_init(
+     dec_delta_clause_tbl   TEXT
+) RETURNS VOID AS $$
+PythonFunction(probKB, gibbs, dec_delta_init)
+$$ LANGUAGE plpythonu
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
+
 /*DROP FUNCTION IF EXISTS MADLIB_SCHEMA.init_comp();
 CREATE FUNCTION MADLIB_SCHEMA.init_comp(
 ) RETURNS VOID AS $$
