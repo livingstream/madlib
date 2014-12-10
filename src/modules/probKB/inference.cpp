@@ -216,15 +216,21 @@ gibbs_step_final::run(AnyType &args)
        GibbsGist instance(state.numAtoms, numClauses, varState);
        instance.infer();
        for(i = 0; i < state.numAtoms; i++) {
-           state.truth[i] = reverseIndexMap[i+1];
-           state.truth[i + state.numAtoms] = instance.probs[i];
+           state.truth[i * 12] = reverseIndexMap[i+1];
+           state.truth[i * 12 + 1] = instance.probs[i];
+           for(int j = 0; j < 10; j++) {
+               state.truth[i * 12 + 2 + j] = instance.truthValues[i][j]; 
+           } 
        }
     } else {
        Gibbs instance(state.numAtoms, numClauses, varState);
        instance.infer();
        for(i = 0; i < state.numAtoms; i++) {
-           state.truth[i] = reverseIndexMap[i+1];
-           state.truth[i + state.numAtoms] = instance.probs[i];
+           state.truth[i * 12] = reverseIndexMap[i+1];
+           state.truth[i * 12 + 1] = instance.probs[i];
+           for(int j = 0; j < 10; j++) {
+               state.truth[i * 12 + 2 + j] = instance.gibbsVec[j]->loc_truthValues[i]; 
+           } 
        }
     } 
 
