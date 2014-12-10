@@ -94,7 +94,7 @@ public:
 
 private:
     static inline uint32_t arraySize(const uint32_t numAtoms, const uint32_t size) {
-        return 5 + numAtoms + size;
+        return 5 + 2 * numAtoms + size;
     }
 
     void rebind(uint32_t inNumAtoms, uint32_t inSize) {
@@ -103,8 +103,8 @@ private:
         numAtoms.rebind(&mStorage[2]);
         size.rebind(&mStorage[3]);
         qid.rebind(&mStorage[4]);
-        truth.rebind(&mStorage[5], inNumAtoms);
-        clauses.rebind(&mStorage[5 + inNumAtoms], inSize);
+        truth.rebind(&mStorage[5], inNumAtoms * 2);
+        clauses.rebind(&mStorage[5 + inNumAtoms * 2], inSize);
     }
     Handle mStorage;
 
@@ -129,6 +129,11 @@ gibbs_step_transition::run(AnyType &args)
     MappedColumnVector clause = args[1].getAs<MappedColumnVector>();
     int clauseSize = static_cast<int>(clause.size());
     double weight = args[2].getAs<double>();
+    // if weight is 0.0, this row contains warm start probability
+    if(weight == 0.0) {
+      return state;
+    }
+
     int component = static_cast<uint32_t>(args[3].getAs<double>());
     if (state.numRows == 0) {
         state.initialize(*this, static_cast<uint32_t>(args[4].getAs<double>()),
@@ -182,6 +187,7 @@ gibbs_step_final::run(AnyType &args)
     size_t i = 0;
     size_t numClauses = 0;
     std::map<int, int> indexMap;
+    std::map<int, int> reverseIndexMap;
     bool parallel = (abs(state.qid) % 2 == 1);
     state.qid = (int)(state.qid / 10);
     VariableState *varState = new VariableState(state.numAtoms);
@@ -191,19 +197,14 @@ gibbs_step_final::run(AnyType &args)
         gc->wt_ = state.clauses[i + 1];
         gc->component = static_cast<size_t>(state.clauses[i + 2]);
         i += 3;
-        if (state.qid < 0) {
-            for (size_t j = 0; j < clauseSize; j++) {
-                gc->gndPreds.push_back(static_cast<int>(state.clauses[i + j]));
-            }
-        } else {
-            for (size_t j = 0; j < clauseSize; j++) {
-                int oriId = static_cast<int>(state.clauses[i + j]);
-                if (indexMap.count(abs(oriId)) == 0) {
-                    int newId = (int)indexMap.size() + 1;
-                    indexMap[abs(oriId)] = newId;
-                }
-                gc->gndPreds.push_back(indexMap[abs(oriId)] * (oriId / abs(oriId)));
-            }
+        for (size_t j = 0; j < clauseSize; j++) {
+             int oriId = static_cast<int>(state.clauses[i + j]);
+             if (indexMap.count(abs(oriId)) == 0) {
+                 int newId = (int)indexMap.size() + 1;
+                 indexMap[abs(oriId)] = newId;
+                 reverseIndexMap[newId] = abs(oriId);
+             }
+             gc->gndPreds.push_back(indexMap[abs(oriId)] * (oriId / abs(oriId)));
         }
         i += clauseSize;
         numClauses += 1;
@@ -214,22 +215,16 @@ gibbs_step_final::run(AnyType &args)
     if(parallel) {
        GibbsGist instance(state.numAtoms, numClauses, varState);
        instance.infer();
-       if (state.qid < 0) {
-          for (i = 0; i < state.numAtoms; i++) {
-               state.truth[i] = instance.probs[i];
-          }
-        } else {
-          state.truth[0] = instance.probs[indexMap[(int)state.qid] - 1];
-        }
+       for(i = 0; i < state.numAtoms; i++) {
+           state.truth[i] = reverseIndexMap[i+1];
+           state.truth[i + state.numAtoms] = instance.probs[i];
+       }
     } else {
        Gibbs instance(state.numAtoms, numClauses, varState);
        instance.infer();
-       if (state.qid < 0) {
-          for (i = 0; i < state.numAtoms; i++) {
-               state.truth[i] = instance.numTrue[i];
-          }
-       } else {
-           state.truth[0] = instance.numTrue[indexMap[(int)state.qid] - 1];
+       for(i = 0; i < state.numAtoms; i++) {
+           state.truth[i] = reverseIndexMap[i+1];
+           state.truth[i + state.numAtoms] = instance.probs[i];
        }
     } 
 

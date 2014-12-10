@@ -259,17 +259,25 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, **kwargs):
    
     n6=time.time() 
     plpy.notice("L5: " + str(n6-n5))
-    rv = plpy.execute("""SELECT (result).truth[1] prob
-                       FROM (SELECT {schema_madlib}.internal_gibbs_result(_madlib_state) AS result
-                             FROM _madlib_alg
-                            ) Q
-                       WHERE array_length((result).truth, 1) != 0       
+
+
+    plpy.execute("""CREATE TEMP TABLE truth_tbl_tmp AS
+                    SELECT prob 
+                    FROM (SELECT (result).truth prob
+                          FROM (SELECT {schema_madlib}.internal_gibbs_result(_madlib_state) AS result 
+                                FROM _madlib_alg) Q
+                          WHERE array_length((result).truth, 1) != 0) U 
                  """.format(schema_madlib = schema_madlib))
+
+    plpy.execute("""SELECT prob[idx + array_length(prob, 1)/2]
+                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/2) idx
+                    WHERE (prob[idx] ::INT) == {qid}
+                 """.format(truth_tbl = truth_tbl, qid = str(qid)))
+
     n7=time.time() 
     plpy.notice("L6: " + str(n7-n6))
     return rv[0]['prob']
 
-#def init_comp(schema_madlib, **kwargs):
 def init_comp():
     plpy.execute('DROP TABLE IF EXISTS components_to_merge, lit_component, cnum_comp_tbl')
     plpy.execute("""CREATE TABLE components_to_merge AS
@@ -340,14 +348,14 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
                  """.format(schema_madlib = schema_madlib))
 
     plpy.execute("""CREATE TABLE {truth_tbl} AS
-                    SELECT prob[idx], prob[idx + array_length(prob, 1)/2]
-                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/2)
+                    SELECT (prob[idx] :: INT), prob[idx + array_length(prob, 1)/2]
+                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/2) idx
                  """.format(truth_tbl = truth_tbl))
 
     return "batch infer is done!"
 
 
-def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl, parallel, **kwargs):
+def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl, new_truth_tbl, parallel, **kwargs):
     plpy.execute("""DELETE
                     FROM {clause_tbl}
                     WHERE cnum in (SELECT cnum FROM {delta_clause_tbl})
@@ -359,10 +367,47 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
 
     plpy.execute('CREATE INDEX lits_tbl_idx ON lits_tbl(lit)')
 
-    plpy.execute("""SELECT array_cat(array_agg(truth_tbl.lit * 1.0), array_agg(prob)) lit_prob
+
+    rv = plpy.execute("""SELECT COUNT(*) AS num_atom
+                         FROM (SELECT DISTINCT abs(unnest(clause)) lit
+                               FROM {clause_tbl}) U""".format(clause_tbl = clause_tbl)) 
+
+    num_atom = rv[0]['num_atom']
+    qid = -10
+    if parallel == True:
+       qid = -11 
+    rv = plpy.execute("""SELECT sum(array_length(clause, 1) + 3) AS state_size 
+                      FROM {clause_tbl}""".format(clause_tbl = clause_tbl));            
+    state_size = rv[0]['state_size']    
+
+    plpy.execute("""INSERT INTO {clause_tbl} 
+                    SELECT 0, array_cat(array_agg(truth_tbl.lit * 1.0), array_agg(prob)), 0.0, 0
                     FROM {truth_tbl} truth_tbl, lits_tbl
-                    WHERE truth_tbl.lit = lits_tbl.lit""".format(truth_tbl = truth_tbl))
+                    WHERE truth_tbl.lit = lits_tbl.lit""".format(clause_tbl = clause_tbl, truth_tbl = truth_tbl))
     
+
+    plpy.execute("""SELECT {schema_madlib}.compute_gibbs('{clause_tbl}', 'clause', 'weight', 
+                         'component', {num_atom}, {state_size}, qid)
+                        """.format(schema_madlib = schema_madlib, 
+                                   clause_tbl = clause_tbl,
+                                   num_atom = str(num_atom),
+                                   state_size = str(state_size),
+                                   qid = str(qid)))
+
+    plpy.execute("""CREATE TEMP TABLE truth_tbl_tmp AS
+                    SELECT prob 
+                    FROM (SELECT (result).truth prob
+                          FROM (SELECT {schema_madlib}.internal_gibbs_result(_madlib_state) AS result 
+                                FROM _madlib_alg) Q
+                          WHERE array_length((result).truth, 1) != 0) U 
+                 """.format(schema_madlib = schema_madlib))
+
+    plpy.execute("""CREATE TABLE {new_truth_tbl} AS
+                    SELECT (prob[idx] :: INT), prob[idx + array_length(prob, 1)/2]
+                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/2) idx
+                 """.format(truth_tbl = truth_tbl))
+
+    return "batch infer is done!"
 
 def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
     plpy.execute("""DROP TABLE IF EXISTS {result_tbl}, ground_truth, result_tbl

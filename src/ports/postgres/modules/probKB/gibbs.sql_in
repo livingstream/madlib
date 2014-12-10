@@ -102,6 +102,20 @@ PythonFunction(probKB, gibbs, batch_infer)
 $$ LANGUAGE plpythonu
 m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
 
+
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.dec_delta_batch_infer(TEXT, TEXT, TEXT, TEXT, BOOL);
+CREATE FUNCTION MADLIB_SCHEMA.dec_delta_batch_infer(
+     clause_tbl        TEXT,
+     delta_clause_tbl  TEXT,
+     truth_tbl         TEXT,
+     new_truth_tbl     TEXT,
+     parallel          BOOL
+) RETURNS TEXT AS $$
+PythonFunction(probKB, gibbs, dec_delta_batch_infer)
+$$ LANGUAGE plpythonu
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
+
+
 DROP FUNCTION IF EXISTS MADLIB_SCHEMA.init(TEXT);
 CREATE FUNCTION MADLIB_SCHEMA.init(
      clause_tbl   TEXT
