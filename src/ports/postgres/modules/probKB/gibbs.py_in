@@ -312,7 +312,10 @@ def init_comp():
      
 
 def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
-    rv = plpy.execute('SELECT COUNT(*) AS num_atom FROM lit_cnums')
+    rv = plpy.execute("""SELECT COUNT(*) AS num_atom
+                         FROM (SELECT DISTINCT abs(unnest(clause)) lit
+                               FROM {clause_tbl}) U""".format(clause_tbl = clause_tbl)) 
+
     num_atom = rv[0]['num_atom']
     qid = -10
     if parallel == True:
@@ -328,15 +331,38 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
                                    state_size = str(state_size),
                                    qid = str(qid)))
 
-    plpy.execute("""CREATE TABLE {truth_tbl} AS
-                    SELECT * 
-                    FROM unnest_rownum(
-                         (SELECT (result).truth truth
+    plpy.execute("""CREATE TEMP TABLE truth_tbl_tmp AS
+                    SELECT prob 
+                    FROM (SELECT (result).truth prob
                           FROM (SELECT {schema_madlib}.internal_gibbs_result(_madlib_state) AS result 
                                 FROM _madlib_alg) Q
-                          WHERE array_length((result).truth, 1) != 0)) 
-                 """.format(truth_tbl = truth_tbl, schema_madlib = schema_madlib))
+                          WHERE array_length((result).truth, 1) != 0) U 
+                 """.format(schema_madlib = schema_madlib))
+
+    plpy.execute("""CREATE TABLE {truth_tbl} AS
+                    SELECT prob[idx], prob[idx + array_length(prob, 1)/2]
+                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/2)
+                 """.format(truth_tbl = truth_tbl))
+
     return "batch infer is done!"
+
+
+def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl, parallel, **kwargs):
+    plpy.execute("""DELETE
+                    FROM {clause_tbl}
+                    WHERE cnum in (SELECT cnum FROM {delta_clause_tbl})
+                 """.format(clause_tbl = clause_tbl, delta_clause_tbl = delta_clause_tbl))
+
+    plpy.execute("""CREATE TEMP TABLE lits_tbl AS
+                    SELECT DISTINCT abs(unnest(clause)) lit
+                    FROM {clause_tbl}""".format(clause_tbl = clause_tbl)) 
+
+    plpy.execute('CREATE INDEX lits_tbl_idx ON lits_tbl(lit)')
+
+    plpy.execute("""SELECT array_cat(array_agg(truth_tbl.lit * 1.0), array_agg(prob)) lit_prob
+                    FROM {truth_tbl} truth_tbl, lits_tbl
+                    WHERE truth_tbl.lit = lits_tbl.lit""".format(truth_tbl = truth_tbl))
+    
 
 def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
     plpy.execute("""DROP TABLE IF EXISTS {result_tbl}, ground_truth, result_tbl
