@@ -115,6 +115,17 @@ PythonFunction(probKB, gibbs, dec_delta_batch_infer)
 $$ LANGUAGE plpythonu
 m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
 
+DROP FUNCTION IF EXISTS MADLIB_SCHEMA.inc_delta_batch_infer(TEXT, TEXT, TEXT, TEXT, BOOL);
+CREATE FUNCTION MADLIB_SCHEMA.inc_delta_batch_infer(
+     clause_tbl        TEXT,
+     delta_clause_tbl  TEXT,
+     truth_tbl         TEXT,
+     new_truth_tbl     TEXT,
+     parallel          BOOL
+) RETURNS TEXT AS $$
+PythonFunction(probKB, gibbs, inc_delta_batch_infer)
+$$ LANGUAGE plpythonu
+m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
 
 DROP FUNCTION IF EXISTS MADLIB_SCHEMA.init(TEXT);
 CREATE FUNCTION MADLIB_SCHEMA.init(
@@ -127,7 +138,7 @@ m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
 
 DROP FUNCTION IF EXISTS MADLIB_SCHEMA.inc_delta_init(TEXT);
 CREATE FUNCTION MADLIB_SCHEMA.inc_delta_init(
-     inc_delta_clause_tbl   TEXT
+     delta_clause_tbl   TEXT
 ) RETURNS VOID AS $$
 PythonFunction(probKB, gibbs, inc_delta_init)
 $$ LANGUAGE plpythonu
@@ -135,7 +146,7 @@ m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
 
 DROP FUNCTION IF EXISTS MADLIB_SCHEMA.dec_delta_init(TEXT);
 CREATE FUNCTION MADLIB_SCHEMA.dec_delta_init(
-     dec_delta_clause_tbl   TEXT
+     delta_clause_tbl   TEXT
 ) RETURNS VOID AS $$
 PythonFunction(probKB, gibbs, dec_delta_init)
 $$ LANGUAGE plpythonu
