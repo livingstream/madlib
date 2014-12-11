@@ -13,7 +13,7 @@ class Gibbs {
 public:
     size_t numAtoms;
     size_t numClauses;
-    bool initialized;
+    bool warmStart;
     VariableState *state;
     vector<bool> affectedGndPredFlag;
     vector<vector<bool> > truthValues;
@@ -47,12 +47,12 @@ public:
     // Convergence test for sampling
     ConvergenceTest **gibbsConvergenceTests;
 
-    Gibbs(size_t inNumAtoms, size_t inNumClauses, VariableState *inState) {
+    Gibbs(size_t inNumAtoms, size_t inNumClauses, VariableState *inState, bool inWarmStart) {
         GibbsParams *params = new GibbsParams();
         numAtoms = inNumAtoms;
         numClauses = inNumClauses;
         state = inState;
-        initialized = false;
+        warmStart = inWarmStart;
         numChains = params->numChains;
         burnMinSteps = params->burnMinSteps;
         burnMaxSteps = params->burnMaxSteps;
@@ -64,6 +64,7 @@ public:
         fracConverged = params->fracConverged;
         samplesPerTest = params->samplesPerTest;
         delete params;
+        init();
     }
 
     ~Gibbs() {
@@ -75,10 +76,7 @@ public:
     }
 
     void init() {
-        if (!initialized) {
-            randomInitGndPredsTruthValues();
-            initialized = true;
-        }
+        randomInitGndPredsTruthValues();
         initTruthValuesAndWts();
         initNumTrueLits();
         initNumTrue();
@@ -105,6 +103,8 @@ public:
         for (size_t i = 0; i < numAtoms; i++) {
             truthValues[i].resize(numChains, false);
         }
+
+        if(!warmStart)
         for (size_t c = 0; c < numChains; c++) {
             // Random tv for all not in blocks
             for (size_t i = 0; i < truthValues.size(); i++) {
@@ -303,7 +303,6 @@ public:
     }
 
     void *infer() {
-        init();
         Timer timer;
         bool burningIn = (burnMaxSteps > 0) ? true : false;
         double secondsElapsed = 0;

@@ -47,6 +47,7 @@ void GibbsScheduler::initTruthValuesAndWts()
 
 void GibbsScheduler::randomInitGndPredsTruthValues()
 {
+   if(!st->warmStart)
    for (size_t i = 0; i < numAtoms; i++) {
      bool tv = genTruthValueForProb(0.5);
      loc_truthValues[i] = tv;

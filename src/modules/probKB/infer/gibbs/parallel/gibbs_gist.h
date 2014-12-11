@@ -26,6 +26,7 @@ public:
    vector<vector<int> > numTrueLits;
    vector<vector<size_t> > affectedGndPredIndices;
    VariableState *varst;
+   bool warmStart;
    vector<double> probs;
 
    size_t numAtoms;
