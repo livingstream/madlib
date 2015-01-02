@@ -202,7 +202,7 @@ gibbs_step_final::run(AnyType &args)
     size_t i = 0;
     size_t numClauses = 0;
     std::map<int, int> indexMap;
-    std::map<int, int> reverseIndexMap;
+    std::map<size_t, size_t> reverseIndexMap;
     bool parallel = (abs(state.qid) % 2 == 1);
     state.qid = (int)(state.qid / 10);
     VariableState *varState = new VariableState(state.numAtoms);
@@ -231,37 +231,37 @@ gibbs_step_final::run(AnyType &args)
     if(parallel) {
        GibbsGist instance(state.numAtoms, numClauses, varState, warm);
        if(warm) {
-         for(int i = 0; i < state.numAtoms; i++) {
+         for(size_t i = 0; i < state.numAtoms; i++) {
             int newId = indexMap[(int)state.worlds[11 * i]];
             for(int j = 0; j < 10; j++) {
+               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[11 * i + j + 1];
+            }
+         }
+       }
+       instance.infer();
+       for(size_t i = 0; i < state.numAtoms; i++) {
+           state.truth[i * 12] = (double)reverseIndexMap[i+1];
+           state.truth[i * 12 + 1] = instance.probs[i];
+           for(int j = 0; j < 10; j++) {
+               state.truth[i * 12 + 2 + j] = instance.gibbsVec[j]->loc_truthValues[i]; 
+           } 
+       }
+    } else {
+       Gibbs instance(state.numAtoms, numClauses, varState, warm);
+       if(warm) {
+         for(size_t i = 0; i < state.numAtoms; i++) {
+            int newId = indexMap[(int)state.worlds[11 * i]];
+            for(size_t j = 0; j < 10; j++) {
                instance.truthValues[newId - 1][j] = state.worlds[11 * i + j + 1];
             }
          }
        }
        instance.infer();
        for(i = 0; i < state.numAtoms; i++) {
-           state.truth[i * 12] = reverseIndexMap[i+1];
-           state.truth[i * 12 + 1] = instance.probs[i];
+           state.truth[i * 12] = (double)reverseIndexMap[i+1];
+           state.truth[i * 12 + 1] = instance.numTrue[i];
            for(int j = 0; j < 10; j++) {
                state.truth[i * 12 + 2 + j] = instance.truthValues[i][j]; 
-           } 
-       }
-    } else {
-       Gibbs instance(state.numAtoms, numClauses, varState, warm);
-       if(warm) {
-         for(int i = 0; i < state.numAtoms; i++) {
-            int newId = indexMap[(int)state.worlds[11 * i]];
-            for(int j = 0; j < 10; j++) {
-               instance.gibbsVec[j]->loc_truthValues[i] = state.worlds[11 * i + j + 1];
-            }
-         }
-       }
-       instance.infer();
-       for(i = 0; i < state.numAtoms; i++) {
-           state.truth[i * 12] = reverseIndexMap[i+1];
-           state.truth[i * 12 + 1] = instance.probs[i];
-           for(int j = 0; j < 10; j++) {
-               state.truth[i * 12 + 2 + j] = instance.gibbsVec[j]->loc_truthValues[i]; 
            } 
        }
     } 

@@ -34,7 +34,7 @@ public:
    size_t numChains;
 
 public:
-   GibbsGist(size_t numAtoms_, size_t numClauses_, VariableState *varst_);
+   GibbsGist(size_t numAtoms_, size_t numClauses_, VariableState *varst_, bool warmStart_);
 
    void initTruthValues();
    
