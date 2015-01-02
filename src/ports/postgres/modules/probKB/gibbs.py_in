@@ -369,8 +369,7 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
 
 
     rv = plpy.execute("""SELECT COUNT(*) AS num_atom
-                         FROM (SELECT DISTINCT abs(unnest(clause)) lit
-                               FROM {clause_tbl}) U""".format(clause_tbl = clause_tbl)) 
+                         FROM lits_tbl""") 
 
     num_atom = rv[0]['num_atom']
     qid = -10
