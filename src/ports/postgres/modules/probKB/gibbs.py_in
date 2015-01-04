@@ -347,8 +347,8 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
                           WHERE array_length((result).truth, 1) != 0) U 
                  """.format(schema_madlib = schema_madlib))
 
-    plpy.execute("""CREATE TABLE {new_truth_tbl} AS
-                    SELECT (prob[idx * 12 - 11] :: INT) lit, prob[idx * 12 - 10] prob, subarray(prob, idx * 12 - 9, 10) worlds
+    plpy.execute("""CREATE TABLE {truth_tbl} AS
+                    SELECT (prob[idx * 12 - 11] :: INT) lit, prob[idx * 12 - 10] prob, prob[idx * 12 - 9 : idx * 12] worlds
                     FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/12) idx
                  """.format(truth_tbl = truth_tbl))
 
@@ -403,9 +403,9 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
                  """.format(schema_madlib = schema_madlib))
 
     plpy.execute("""CREATE TABLE {new_truth_tbl} AS
-                    SELECT (prob[idx * 12 - 11] :: INT) lit, prob[idx * 12 - 10] prob, subarray(prob, idx * 12 - 9, 10) worlds
+                    SELECT (prob[idx * 12 - 11] :: INT) lit, prob[idx * 12 - 10] prob, prob[idx * 12 - 9 : idx * 12] worlds
                     FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/12) idx
-                 """.format(truth_tbl = truth_tbl))
+                 """.format(new_truth_tbl = new_truth_tbl))
 
     return "batch infer is done!"
 
@@ -472,7 +472,7 @@ def inc_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
                  """.format(schema_madlib = schema_madlib))
 
     plpy.execute("""CREATE TABLE {new_truth_tbl} AS
-                    SELECT (prob[idx * 12 - 11] :: INT), prob[idx * 12 - 10], subarray(prob, idx * 12 - 9, 10)
+                    SELECT (prob[idx * 12 - 11] :: INT), prob[idx * 12 - 10], prob[idx * 12 - 9 : idx * 12] worlds
                     FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/12) idx
                  """.format(truth_tbl = truth_tbl))
 
