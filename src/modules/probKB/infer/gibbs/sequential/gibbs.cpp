@@ -64,7 +64,6 @@ public:
         fracConverged = params->fracConverged;
         samplesPerTest = params->samplesPerTest;
         delete params;
-        init();
     }
 
     ~Gibbs() {
@@ -303,6 +302,7 @@ public:
     }
 
     void *infer() {
+        init();
         Timer timer;
         bool burningIn = (burnMaxSteps > 0) ? true : false;
         double secondsElapsed = 0;

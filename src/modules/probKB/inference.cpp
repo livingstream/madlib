@@ -232,10 +232,14 @@ gibbs_step_final::run(AnyType &args)
        GibbsGist instance(state.numAtoms, numClauses, varState, warm);
        if(warm) {
          for(size_t i = 0; i < state.numAtoms; i++) {
-            int newId = indexMap[(int)state.worlds[11 * i]];
+            std::stringstream ss;
+            int newId = indexMap[(int)state.worlds[i]];
+            ss << newId << " ";
             for(int j = 0; j < 10; j++) {
-               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[11 * i + j + 1];
+               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[state.numAtoms + 10 * i + j];
+               ss << "|" << state.worlds[state.numAtoms + 10 * i + j];
             }
+            //throw std::logic_error(ss.str());
          }
        }
        instance.infer();
@@ -252,7 +256,7 @@ gibbs_step_final::run(AnyType &args)
          for(size_t i = 0; i < state.numAtoms; i++) {
             int newId = indexMap[(int)state.worlds[11 * i]];
             for(size_t j = 0; j < 10; j++) {
-               instance.truthValues[newId - 1][j] = state.worlds[11 * i + j + 1];
+               instance.truthValues[newId - 1][j] = state.worlds[state.numAtoms + 10 * i + j];
             }
          }
        }

@@ -96,6 +96,21 @@ double GibbsScheduler::getProbabilityOfPred(const size_t &predIdx)
 
 void *GibbsScheduler::performGibbsStep()
 {
+   init();
+   /*stringstream ss;
+   ss << "log" << chainId_;
+   string str = ss.str();
+   f.open(str.c_str(), ios::out | ios::trunc);
+   
+   f << "initialized truth value = " << loc_truthValues[0] << endl;
+   f << "numTrueLits = " << loc_numTrueLits[0] << endl;*/     
+
+   for (size_t i = 0; i < numAtoms; i++) {
+      loc_affectedGndPredIndices.push_back(i);
+   }
+   updateWtsForGndPreds(loc_affectedGndPredIndices);
+   loc_affectedGndPredIndices.clear();
+
    int sample = 0;
    while(sample < st->gGla->para->samplesPerTest) {
      sample++; 

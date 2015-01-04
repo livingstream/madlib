@@ -387,7 +387,7 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
     
 
     plpy.execute("""SELECT {schema_madlib}.compute_gibbs('{clause_tbl}', 'clause', 'weight', 
-                         'component', {num_atom}, {state_size}, qid)
+                         'component', {num_atom}, {state_size}, {qid})
                         """.format(schema_madlib = schema_madlib, 
                                    clause_tbl = clause_tbl,
                                    num_atom = str(num_atom),
@@ -456,7 +456,7 @@ def inc_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
     
 
     plpy.execute("""SELECT {schema_madlib}.compute_gibbs('{clause_tbl}', 'clause', 'weight', 
-                         'component', {num_atom}, {state_size}, qid)
+                         'component', {num_atom}, {state_size}, {qid})
                         """.format(schema_madlib = schema_madlib, 
                                    clause_tbl = clause_tbl,
                                    num_atom = str(num_atom),
