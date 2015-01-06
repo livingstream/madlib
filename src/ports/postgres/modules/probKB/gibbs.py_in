@@ -361,12 +361,9 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
                     WHERE cnum in (SELECT cnum FROM {delta_clause_tbl})
                  """.format(clause_tbl = clause_tbl, delta_clause_tbl = delta_clause_tbl))
 
-    plpy.execute("""CREATE TEMP TABLE lits_tbl AS
-                    SELECT DISTINCT abs(unnest(clause)) lit
-                    FROM {clause_tbl}""".format(clause_tbl = clause_tbl)) 
-
     rv = plpy.execute("""SELECT COUNT(*) AS num_atom
-                         FROM lits_tbl""") 
+                         FROM (SELECT DISTINCT abs(unnest(clause)) lit
+                               FROM {clause_tbl}) U""".format(clause_tbl = clause_tbl)) 
 
     num_atom = rv[0]['num_atom']
     qid = -10
@@ -377,7 +374,7 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
     state_size = rv[0]['state_size']    
 
     plpy.execute("""INSERT INTO {clause_tbl} 
-                    SELECT 0, array_agg(array_prepend(lit, worlds)), 0.0, 0
+                    SELECT 0, array_union(array_prepend(lit, worlds)), 0.0, 0
                     FROM {truth_tbl} truth_tbl""".format(clause_tbl = clause_tbl, truth_tbl = truth_tbl))
     
 
@@ -411,12 +408,9 @@ def inc_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
                     SELECT * FROM {delta_clause_tbl})
                  """.format(clause_tbl = clause_tbl, delta_clause_tbl = delta_clause_tbl))
 
-    plpy.execute("""CREATE TEMP TABLE lits_tbl AS
-                    SELECT DISTINCT abs(unnest(clause)) lit
-                    FROM {clause_tbl}""".format(clause_tbl = clause_tbl)) 
-
     rv = plpy.execute("""SELECT COUNT(*) AS num_atom
-                         FROM lits_tbl""") 
+                         FROM (SELECT DISTINCT abs(unnest(clause)) lit
+                               FROM {clause_tbl}) U""".format(clause_tbl = clause_tbl)) 
 
     num_atom = rv[0]['num_atom']
     qid = -10
@@ -427,7 +421,7 @@ def inc_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
     state_size = rv[0]['state_size']    
 
     plpy.execute("""INSERT INTO {clause_tbl} 
-                    SELECT 0, array_agg(array_prepend(lit, worlds)), 0.0, 0
+                    SELECT 0, array_union(array_prepend(lit, worlds)), 0.0, 0
                     FROM {truth_tbl} truth_tbl""".format(clause_tbl = clause_tbl, truth_tbl = truth_tbl))
     
 
