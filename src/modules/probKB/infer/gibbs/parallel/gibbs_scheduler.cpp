@@ -27,11 +27,6 @@ void GibbsScheduler::init(bool warm)
 {
    initTruthValuesAndWts(warm);
    randomInitGndPredsTruthValues(warm);
-   for (size_t i = 0; i < numAtoms; i++) {
-      loc_affectedGndPredIndices.push_back(i);
-   }
-   updateWtsForGndPreds(loc_affectedGndPredIndices);
-   loc_affectedGndPredIndices.clear();
 }
 
 void GibbsScheduler::initTruthValuesAndWts(bool warm)
