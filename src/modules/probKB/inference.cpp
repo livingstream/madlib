@@ -233,11 +233,11 @@ gibbs_step_final::run(AnyType &args)
        if(warm) {
          for(size_t i = 0; i < state.worlds.size()/11; i++) {
             std::stringstream ss;
-            if(indexMap.count((int)state.worlds[i]) == 0) continue;
-            int newId = indexMap[(int)state.worlds[i]];
+            if(indexMap.count((int)state.worlds[11 * i]) == 0) continue;
+            int newId = indexMap[(int)state.worlds[11 * i]];
             ss << newId << " ";
-            for(int j = 0; j < 10; j++) {
-               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[state.worlds.size()/11 + 10 * i + j];
+            for(int j = 1; j <= 10; j++) {
+               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[11 * i + j];
             }
             //throw std::logic_error(ss.str());
          }
@@ -255,11 +255,11 @@ gibbs_step_final::run(AnyType &args)
        if(warm) {
          for(size_t i = 0; i < state.worlds.size()/11; i++) {
             std::stringstream ss;
-            if(indexMap.count((int)state.worlds[i]) == 0) continue;
-            int newId = indexMap[(int)state.worlds[i]];
+            if(indexMap.count((int)state.worlds[11 * i]) == 0) continue;
+            int newId = indexMap[(int)state.worlds[11 * i]];
             ss << newId << " ";
-            for(int j = 0; j < 10; j++) {
-               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[state.worlds.size()/11 + 10 * i + j];
+            for(int j = 1; j <= 10; j++) {
+               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[11 * i + j];
             }
             //throw std::logic_error(ss.str());
          }
