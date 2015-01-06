@@ -7,7 +7,7 @@ GibbsScheduler::GibbsScheduler(size_t chainId_, size_t inNumAtoms, size_t inNumC
    numAtoms = inNumAtoms;
    numClauses = inNumClauses;
    st = inState;
-   init();
+   init(false);
    /*stringstream ss;
    ss << "log" << chainId_;
    string str = ss.str();
@@ -16,11 +16,6 @@ GibbsScheduler::GibbsScheduler(size_t chainId_, size_t inNumAtoms, size_t inNumC
    f << "initialized truth value = " << loc_truthValues[0] << endl;
    f << "numTrueLits = " << loc_numTrueLits[0] << endl;*/     
 
-   for (size_t i = 0; i < numAtoms; i++) {
-      loc_affectedGndPredIndices.push_back(i);
-   }
-   updateWtsForGndPreds(loc_affectedGndPredIndices);
-   loc_affectedGndPredIndices.clear();
 }
 
 GibbsScheduler::~GibbsScheduler()
@@ -28,26 +23,32 @@ GibbsScheduler::~GibbsScheduler()
 }
 
 
-void GibbsScheduler::init()
+void GibbsScheduler::init(bool warm)
 {
-   initTruthValuesAndWts();
-   randomInitGndPredsTruthValues();
+   initTruthValuesAndWts(warm);
+   randomInitGndPredsTruthValues(warm);
+   for (size_t i = 0; i < numAtoms; i++) {
+      loc_affectedGndPredIndices.push_back(i);
+   }
+   updateWtsForGndPreds(loc_affectedGndPredIndices);
+   loc_affectedGndPredIndices.clear();
 }
 
-void GibbsScheduler::initTruthValuesAndWts()
+void GibbsScheduler::initTruthValuesAndWts(bool warm)
 {
    loc_wtsWhenFalse.resize(numAtoms,0);
    loc_wtsWhenTrue.resize(numAtoms,0);
    loc_numTrue.resize(numAtoms,0);
    loc_numTrueTemp.resize(numAtoms,0);
    loc_affectedGndPredFlag.resize(numAtoms, false);
+   if(!warm)
    loc_truthValues.resize(numAtoms, false);
    loc_numTrueLits.resize(numClauses, 0);
 }
 
-void GibbsScheduler::randomInitGndPredsTruthValues()
+void GibbsScheduler::randomInitGndPredsTruthValues(bool warm)
 {
-   if(!st->warmStart)
+   if(!warm)
    for (size_t i = 0; i < numAtoms; i++) {
      bool tv = genTruthValueForProb(0.5);
      loc_truthValues[i] = tv;
@@ -96,7 +97,9 @@ double GibbsScheduler::getProbabilityOfPred(const size_t &predIdx)
 
 void *GibbsScheduler::performGibbsStep()
 {
-   init();
+   if(st->warmStart) { 
+      init(true);
+   }
    /*stringstream ss;
    ss << "log" << chainId_;
    string str = ss.str();

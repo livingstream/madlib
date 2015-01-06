@@ -231,13 +231,13 @@ gibbs_step_final::run(AnyType &args)
     if(parallel) {
        GibbsGist instance(state.numAtoms, numClauses, varState, warm);
        if(warm) {
-         for(size_t i = 0; i < state.numAtoms; i++) {
+         for(size_t i = 0; i < state.worlds.size()/11; i++) {
             std::stringstream ss;
+            if(indexMap.count((int)state.worlds[i]) == 0) continue;
             int newId = indexMap[(int)state.worlds[i]];
             ss << newId << " ";
             for(int j = 0; j < 10; j++) {
-               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[state.numAtoms + 10 * i + j];
-               ss << "|" << state.worlds[state.numAtoms + 10 * i + j];
+               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[state.worlds.size()/11 + 10 * i + j];
             }
             //throw std::logic_error(ss.str());
          }
@@ -253,11 +253,15 @@ gibbs_step_final::run(AnyType &args)
     } else {
        Gibbs instance(state.numAtoms, numClauses, varState, warm);
        if(warm) {
-         for(size_t i = 0; i < state.numAtoms; i++) {
-            int newId = indexMap[(int)state.worlds[11 * i]];
-            for(size_t j = 0; j < 10; j++) {
-               instance.truthValues[newId - 1][j] = state.worlds[state.numAtoms + 10 * i + j];
+         for(size_t i = 0; i < state.worlds.size()/11; i++) {
+            std::stringstream ss;
+            if(indexMap.count((int)state.worlds[i]) == 0) continue;
+            int newId = indexMap[(int)state.worlds[i]];
+            ss << newId << " ";
+            for(int j = 0; j < 10; j++) {
+               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[state.worlds.size()/11 + 10 * i + j];
             }
+            //throw std::logic_error(ss.str());
          }
        }
        instance.infer();

@@ -38,11 +38,11 @@ public:
 
    ~GibbsScheduler();
  
-   void init();
+   void init(bool);
 
-   void initTruthValuesAndWts();
+   void initTruthValuesAndWts(bool);
 
-   void randomInitGndPredsTruthValues();
+   void randomInitGndPredsTruthValues(bool);
 
    static void  *callMemberFunction(void *arg);
 

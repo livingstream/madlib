@@ -64,6 +64,7 @@ public:
         fracConverged = params->fracConverged;
         samplesPerTest = params->samplesPerTest;
         delete params;
+        init();
     }
 
     ~Gibbs() {
@@ -80,6 +81,10 @@ public:
         initNumTrueLits();
         initNumTrue();
         initConvergenceTests();
+    }
+    void warmInit() {
+        initTruthValuesAndWts();
+        initNumTrueLits();
     }
 
     void initTruthValuesAndWts() {
@@ -102,8 +107,6 @@ public:
         for (size_t i = 0; i < numAtoms; i++) {
             truthValues[i].resize(numChains, false);
         }
-
-        if(!warmStart)
         for (size_t c = 0; c < numChains; c++) {
             // Random tv for all not in blocks
             for (size_t i = 0; i < truthValues.size(); i++) {
@@ -302,7 +305,9 @@ public:
     }
 
     void *infer() {
-        init();
+        if(warmStart) {
+           warmInit();
+        }
         Timer timer;
         bool burningIn = (burnMaxSteps > 0) ? true : false;
         double secondsElapsed = 0;
