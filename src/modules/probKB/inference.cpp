@@ -148,7 +148,6 @@ gibbs_step_transition::run(AnyType &args)
        state.warmStart = 1;
        return state ;
     }
-    throw std::logic_error("error 1");
 
     int component = static_cast<uint32_t>(args[3].getAs<double>());
     if (state.numRows == 0) {

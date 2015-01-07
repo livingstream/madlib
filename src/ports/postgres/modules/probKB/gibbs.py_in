@@ -332,7 +332,7 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
                       FROM {clause_tbl}""".format(clause_tbl = clause_tbl));            
     state_size = rv[0]['state_size']    
     plpy.execute("""SELECT {schema_madlib}.compute_gibbs('{clause_tbl}', 'clause', 'weight', 
-                         'component', {num_atom}, {state_size}, qid)
+                         'component', {num_atom}, {state_size}, {qid})
                         """.format(schema_madlib = schema_madlib, 
                                    clause_tbl = clause_tbl,
                                    num_atom = str(num_atom),
