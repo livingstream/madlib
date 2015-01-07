@@ -26,8 +26,8 @@ public:
    ofstream f; 
 
    vector<bool> loc_truthValues;
-   vector<bool> loc_wtsWhenFalse;
-   vector<bool> loc_wtsWhenTrue;
+   vector<double> loc_wtsWhenFalse;
+   vector<double> loc_wtsWhenTrue;
    vector<double> loc_numTrue;
    vector<double> loc_numTrueTemp;
    vector<bool> loc_affectedGndPredFlag;

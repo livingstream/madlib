@@ -17,8 +17,8 @@ public:
     VariableState *state;
     vector<bool> affectedGndPredFlag;
     vector<vector<bool> > truthValues;
-    vector<vector<bool> > wtsWhenFalse;
-    vector<vector<bool> > wtsWhenTrue;
+    vector<vector<double> > wtsWhenFalse;
+    vector<vector<double> > wtsWhenTrue;
     vector<double> numTrue;
     vector<vector<int> > numTrueLits;
     // No. of chains which MCMC will use
