@@ -356,14 +356,21 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
 
 
 def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl, new_truth_tbl, parallel, **kwargs):
+    plpy.execute("""CREATE TABLE pre_atoms AS
+                    SELECT DISTINCT abs(unnest(clause)) atom
+                    FROM {clause_tbl}) U""".format(clause_tbl = clause_tbl)) 
+
     plpy.execute("""DELETE
                     FROM {clause_tbl}
                     WHERE cnum in (SELECT cnum FROM {delta_clause_tbl})
                  """.format(clause_tbl = clause_tbl, delta_clause_tbl = delta_clause_tbl))
 
+    plpy.execute("""CREATE TABLE cur_atoms AS
+                    SELECT DISTINCT abs(unnest(clause)) atom
+                    FROM {clause_tbl}) U""".format(clause_tbl = clause_tbl)) 
+
     rv = plpy.execute("""SELECT COUNT(*) AS num_atom
-                         FROM (SELECT DISTINCT abs(unnest(clause)) lit
-                               FROM {clause_tbl}) U""".format(clause_tbl = clause_tbl)) 
+                         FROM cur_atoms""".format(clause_tbl = clause_tbl)) 
 
     num_atom = rv[0]['num_atom']
     qid = -10
@@ -375,7 +382,10 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
 
     plpy.execute("""INSERT INTO {clause_tbl} 
                     SELECT 0, array_union(array_prepend(lit, worlds)), 0.0, 0
-                    FROM {truth_tbl} truth_tbl""".format(clause_tbl = clause_tbl, truth_tbl = truth_tbl))
+                    FROM {truth_tbl} truth_tbl
+                    WHERE lit not in (SELECT atom FROM pre_atoms 
+                                      EXCEPT 
+                                      SELECT atom FROM cur_atoms)""".format(clause_tbl = clause_tbl, truth_tbl = truth_tbl))
     
 
     plpy.execute("""SELECT {schema_madlib}.compute_gibbs('{clause_tbl}', 'clause', 'weight', 
