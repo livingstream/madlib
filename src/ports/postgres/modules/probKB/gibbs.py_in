@@ -348,7 +348,7 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
                  """.format(schema_madlib = schema_madlib))
 
     plpy.execute("""CREATE TABLE {truth_tbl} AS
-                    SELECT (prob[idx * 12 - 11] :: INT) lit, prob[idx * 12 - 10] prob, prob[idx * 12 - 9 : idx * 12] worlds :: INT[]
+                    SELECT (prob[idx * 12 - 11] :: INT) lit, prob[idx * 12 - 10] prob, prob[idx * 12 - 9 : idx * 12] :: INT[] worlds
                     FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/12) idx
                  """.format(truth_tbl = truth_tbl))
 
@@ -356,7 +356,7 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
 
 
 def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl, new_truth_tbl, parallel, **kwargs):
-    plpy.execute("""DROP TABLE IF EXISTS pre_atoms, cur_atoms""")
+    plpy.execute("""DROP TABLE IF EXISTS pre_atoms, cur_atoms, truth_tbl_tmp""")
     plpy.execute("""CREATE TEMP TABLE pre_atoms AS
                     SELECT DISTINCT abs(unnest(clause)) atom
                     FROM {clause_tbl}""".format(clause_tbl = clause_tbl)) 
@@ -418,6 +418,7 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
 
 
 def inc_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl, new_truth_tbl, parallel, **kwargs):
+    plpy.execute("""DROP TABLE IF EXISTS truth_tbl_tmp""")
     plpy.execute("""INSERT INTO {clause_tbl}
                     SELECT * FROM {delta_clause_tbl})
                  """.format(clause_tbl = clause_tbl, delta_clause_tbl = delta_clause_tbl))
