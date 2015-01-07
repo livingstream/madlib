@@ -206,11 +206,13 @@ gibbs_step_final::run(AnyType &args)
     bool parallel = (abs(state.qid) % 2 == 1);
     state.qid = (int)(state.qid / 10);
     VariableState *varState = new VariableState(state.numAtoms);
+    std::stringstream ss;
     while (i < static_cast<size_t>(state.clauses.size())) {
         GroundClause *gc = new GroundClause();
         size_t clauseSize =  static_cast<size_t>(state.clauses[i]);
         gc->wt_ = state.clauses[i + 1];
         gc->component = static_cast<size_t>(state.clauses[i + 2]);
+        //ss << "w = " << gc->wt_ << " clause = ";
         i += 3;
         for (size_t j = 0; j < clauseSize; j++) {
              int oriId = static_cast<int>(state.clauses[i + j]);
@@ -220,11 +222,15 @@ gibbs_step_final::run(AnyType &args)
                  reverseIndexMap[newId] = abs(oriId);
              }
              gc->gndPreds.push_back(indexMap[abs(oriId)] * (oriId / abs(oriId)));
+             //ss << indexMap[abs(oriId)] * (oriId / abs(oriId)) << " ";
         }
+        //ss << ";\n";
         i += clauseSize;
         numClauses += 1;
         varState->gndClauses_->push_back(gc);
     }
+    ss << "clause size" << numClauses << "\n";
+    //throw std::logic_error(ss.str());
 
     varState->init();
     bool warm = (bool)state.warmStart;
@@ -232,14 +238,12 @@ gibbs_step_final::run(AnyType &args)
        GibbsGist instance(state.numAtoms, numClauses, varState, warm);
        if(warm) {
          for(size_t i = 0; i < (size_t)(state.worlds.size()/11); i++) {
-            std::stringstream ss;
             if(indexMap.count((int)state.worlds[11 * i]) == 0) continue;
             int newId = indexMap[(int)state.worlds[11 * i]];
             ss << newId << " ";
             for(int j = 0; j < 10; j++) {
                instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[11 * i + j + 1];
             }
-            //throw std::logic_error(ss.str());
          }
        }
        instance.infer();

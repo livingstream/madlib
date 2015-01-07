@@ -356,7 +356,8 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
 
 
 def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl, new_truth_tbl, parallel, **kwargs):
-    plpy.execute("""CREATE TABLE pre_atoms AS
+    plpy.execute("""DROP TABLE IF EXISTS pre_atoms, cur_atoms""")
+    plpy.execute("""CREATE TEMP TABLE pre_atoms AS
                     SELECT DISTINCT abs(unnest(clause)) atom
                     FROM {clause_tbl}""".format(clause_tbl = clause_tbl)) 
 
@@ -365,7 +366,7 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
                     WHERE cnum in (SELECT cnum FROM {delta_clause_tbl})
                  """.format(clause_tbl = clause_tbl, delta_clause_tbl = delta_clause_tbl))
 
-    plpy.execute("""CREATE TABLE cur_atoms AS
+    plpy.execute("""CREATE TEMP TABLE cur_atoms AS
                     SELECT DISTINCT abs(unnest(clause)) atom
                     FROM {clause_tbl}""".format(clause_tbl = clause_tbl)) 
 
@@ -380,12 +381,15 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
                       FROM {clause_tbl}""".format(clause_tbl = clause_tbl));            
     state_size = rv[0]['state_size']    
 
+    plpy.execute("""DELETE
+                    FROM {truth_tbl}
+                    WHERE lit in (SELECT atom FROM pre_atoms 
+                                  EXCEPT 
+                                  SELECT atom FROM cur_atoms)""".format(truth_tbl = truth_tbl))
+
     plpy.execute("""INSERT INTO {clause_tbl} 
                     SELECT 0, array_union(array_prepend(lit, worlds)), 0.0, 0
-                    FROM {truth_tbl} truth_tbl
-                    WHERE lit not in (SELECT atom FROM pre_atoms 
-                                      EXCEPT 
-                                      SELECT atom FROM cur_atoms)""".format(clause_tbl = clause_tbl, truth_tbl = truth_tbl))
+                    FROM {truth_tbl} truth_tbl""".format(clause_tbl = clause_tbl, truth_tbl = truth_tbl))
     
 
     plpy.execute("""SELECT {schema_madlib}.compute_gibbs('{clause_tbl}', 'clause', 'weight', 
