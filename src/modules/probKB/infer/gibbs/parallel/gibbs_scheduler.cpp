@@ -31,14 +31,17 @@ void GibbsScheduler::init(bool warm)
 
 void GibbsScheduler::initTruthValuesAndWts(bool warm)
 {
-   loc_wtsWhenFalse.resize(numAtoms,0);
-   loc_wtsWhenTrue.resize(numAtoms,0);
-   loc_numTrue.resize(numAtoms,0);
-   loc_numTrueTemp.resize(numAtoms,0);
-   loc_affectedGndPredFlag.resize(numAtoms, false);
-   if(!warm)
-   loc_truthValues.resize(numAtoms, false);
-   loc_numTrueLits.resize(numClauses, 0);
+   if(!warm) {
+      loc_wtsWhenFalse.resize(numAtoms,0);
+      loc_wtsWhenTrue.resize(numAtoms,0);
+      loc_numTrue.resize(numAtoms,0);
+      loc_numTrueTemp.resize(numAtoms,0);
+      loc_affectedGndPredFlag.resize(numAtoms, false);
+      loc_truthValues.resize(numAtoms, false);
+      loc_numTrueLits.resize(numClauses, 0);
+   } else {
+     std::fill(loc_numTrueLits.begin(), loc_numTrueLits.end(), 0);
+   }
 }
 
 void GibbsScheduler::randomInitGndPredsTruthValues(bool warm)

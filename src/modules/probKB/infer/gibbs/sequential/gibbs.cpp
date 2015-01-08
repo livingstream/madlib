@@ -83,7 +83,10 @@ public:
         initConvergenceTests();
     }
     void warmInit() {
-        initTruthValuesAndWts();
+        for (size_t i = 0; i < numClauses; i++) {
+            std::fill(numTrueLits[i].begin(), numTrueLits[i].end(), 0);
+        }
+
         initNumTrueLits();
     }
 
