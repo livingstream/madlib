@@ -194,7 +194,7 @@ def dec_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
 def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, **kwargs):
     plpy.notice("L0: begin ")
     n1=time.time() 
-    plpy.execute('DROP TABLE IF EXISTS atoms, unique_atoms, atom_map, new_clause_tbl, cnum_tbl')
+    plpy.execute('DROP TABLE IF EXISTS atoms, unique_atoms, atom_map, new_clause_tbl, cnum_tbl, truth_tbl_tmp')
     plpy.execute('DROP SEQUENCE IF EXISTS serial')
     n2=time.time() 
     plpy.notice("L1: " + str(n2-n1))
@@ -260,7 +260,7 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, **kwargs):
     n6=time.time() 
     plpy.notice("L5: " + str(n6-n5))
 
-
+    qid = qid / 10
     plpy.execute("""CREATE TEMP TABLE truth_tbl_tmp AS
                     SELECT prob 
                     FROM (SELECT (result).truth prob
@@ -269,10 +269,9 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, **kwargs):
                           WHERE array_length((result).truth, 1) != 0) U 
                  """.format(schema_madlib = schema_madlib))
 
-    plpy.execute("""SELECT (prob[idx * 12 - 11] :: INT), prob[idx * 12 - 10]
-                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1) / 12) idx
-                    WHERE (prob[idx] ::INT) == {qid}
-                 """.format(truth_tbl = truth_tbl, qid = str(qid)))
+    rv = plpy.execute("""SELECT prob[idx * 12 - 10] prob
+                         FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1) / 12) idx
+                         WHERE (prob[idx * 12 - 11] ::INT) = {qid}""".format(qid = str(qid)))
 
     n7=time.time() 
     plpy.notice("L6: " + str(n7-n6))
@@ -465,11 +464,11 @@ def inc_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
 
 
 def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
-    plpy.execute("""DROP TABLE IF EXISTS {result_tbl}, ground_truth, result_tbl
+    plpy.execute("""DROP TABLE IF EXISTS {result_tbl}, ground_truth
                  """.format(result_tbl = result_tbl))
     plpy.execute("""CREATE TABLE {result_tbl} (comp INT, lit INT, num_hop INT, time REAL, prob REAL, truth REAL, parallel BOOL)
                  """.format(result_tbl = result_tbl))
-    plpy.execute('CREATE TABLE ground_truth(atom int, prob real)')
+    plpy.execute('CREATE TABLE ground_truth(atom int, prob real, worlds int[])')
     plpy.execute("COPY ground_truth FROM '/home/kun/querydriven-probkb/dataset/prob'")
     plpy.execute('CREATE INDEX ground_truth_idx ON ground_truth(atom)')
 
