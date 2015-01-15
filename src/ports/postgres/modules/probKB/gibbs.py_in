@@ -68,7 +68,7 @@ def init(schema_madlib, clause_tbl, **kwargs):
     plpy.execute('CREATE INDEX lit_idx ON cnum_lit (lit)')
 
     plpy.execute("""CREATE TEMP TABLE lit_cnums AS
-                    SELECT lit, array_agg(cnum order by cnum) cnums, array_agg(len order by cnum) lens
+                    SELECT lit, array_agg(cnum) cnums, array_agg(len) lens
                     FROM cnum_lit
                     GROUP BY lit""")
     plpy.execute('CREATE INDEX lit_cnums_indx ON lit_cnums (lit)')
@@ -485,7 +485,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                          FROM (SELECT DISTINCT abs(unnest(clause)) atom
                                FROM {clause_tbl}
                                WHERE component = {large}) U""".format(clause_tbl=clause_tbl,large=str(large))) 
-    largec_test_nodes = random.sample(rv[0]['atoms'], min(1000, len(rv[0]['atoms'])))
+    largec_test_nodes = random.sample(rv[0]['atoms'], min(500, len(rv[0]['atoms'])))
     plpy.notice("large comonent size = " + str(len(rv[0]['atoms'])))
     
     # medium component
@@ -493,7 +493,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                          FROM (SELECT DISTINCT abs(unnest(clause)) atom
                                FROM {clause_tbl}
                                WHERE component = {medium}) U""".format(clause_tbl = clause_tbl, medium=str(medium))) 
-    mediumc_test_nodes = random.sample(rv[0]['atoms'], min(1000, len(rv[0]['atoms'])))
+    mediumc_test_nodes = random.sample(rv[0]['atoms'], min(500, len(rv[0]['atoms'])))
     plpy.notice("medium comonent size = " + str(len(rv[0]['atoms'])))
     
     # small component
@@ -501,56 +501,11 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                          FROM (SELECT DISTINCT abs(unnest(clause)) atom
                                FROM {clause_tbl}
                                WHERE component = {small}) U""".format(clause_tbl=clause_tbl,small=str(small))) 
-    smallc_test_nodes = random.sample(rv[0]['atoms'], min(1000, len(rv[0]['atoms'])))
+    smallc_test_nodes = random.sample(rv[0]['atoms'], min(500, len(rv[0]['atoms'])))
     plpy.notice("small comonent size = " + str(len(rv[0]['atoms'])))
 
-    hops = [1]
     components = [small, medium, large] 
     progress = 0
-    for num_hop in hops:
-        for comp in components:
-            if comp == small:
-               test_nodes = smallc_test_nodes
-            elif comp == medium:
-               test_nodes = mediumc_test_nodes
-            else:
-               test_nodes = largec_test_nodes
-            for node in test_nodes:
-                progress = progress + 1
-                plpy.notice("progress = "+str(progress))        
-                #plpy.notice("num_hop="+str(num_hop) + " : qid=" + str(node))        
-                startTime = time.time() 
-                rv = plpy.execute("""SELECT {schema_madlib}.qdr_infer('{clause_tbl}', {num_hop}, {node}, false) prob
-                                  """.format(schema_madlib = schema_madlib, clause_tbl = clause_tbl, 
-                                      num_hop = str(num_hop), node = str(node)))       
-                prob = rv[0]['prob']
-                rv = plpy.execute('SELECT prob FROM ground_truth WHERE atom = ' + str(node))
-                truth = rv[0]['prob']
-                    
-                duration = time.time() - startTime
-                plpy.execute("""INSERT INTO {result_tbl} VALUES ({comp}, {node}, {num_hop}, {duration}, {prob}, {truth}, false)
-                             """.format(result_tbl = result_tbl, comp = str(comp), node = str(node), num_hop = str(num_hop), duration = str(duration), prob = str(prob), truth = str(truth)))
-
-    plpy.execute("""CREATE TABLE selected_atoms AS
-                    SELECT comp, array_agg(lit) atoms
-                    FROM (SELECT comp, lit, row_number() 
-                          over (partition by comp order by abs(prob-truth) desc) as rownum 
-                          FROM {result_tbl}) U
-                    WHERE rownum <= 5
-                    GROUP BY comp""".format(result_tbl = result_tbl))
-
-    plpy.execute("""TRUNCATE {result_tbl} 
-                 """.format(result_tbl = result_tbl))
-
-    rv = plpy.execute('SELECT atoms FROM selected_atoms WHERE comp = ' + str(large))
-    largec_test_nodes = rv[0]['atoms']
-
-    rv = plpy.execute('SELECT atoms FROM selected_atoms WHERE comp = ' + str(medium))
-    mediumc_test_nodes = rv[0]['atoms']
-
-    rv = plpy.execute('SELECT atoms FROM selected_atoms WHERE comp = ' + str(small))
-    smallc_test_nodes = rv[0]['atoms']
-    
     hops = [1, 2, 5, 10, 20]
     modes = [False, True]
     for test in range(5):
@@ -564,6 +519,8 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                  else:
                     test_nodes = largec_test_nodes
                  for node in test_nodes:
+                     progress = progress + 1
+                     plpy.notice("progress = "+str(progress))        
                      startTime = time.time() 
                      rv = plpy.execute("""SELECT {schema_madlib}.qdr_infer('{clause_tbl}', {num_hop}, {node}, {mode}) prob
                                        """.format(schema_madlib = schema_madlib, clause_tbl = clause_tbl, 
