@@ -1,12 +1,11 @@
 #include "gibbs_gist.h"
 
-GibbsGist::GibbsGist(size_t numAtoms_, size_t numClauses_, VariableState *varst_, bool warmStart_)
+GibbsGist::GibbsGist(size_t numAtoms_, size_t numClauses_, VariableState *varst_)
 {
    numAtoms = numAtoms_;
    numClauses = numClauses_;
    numChains = NUM_THREADS;
    varst = varst_;
-   warmStart = warmStart_;
    gGla = new GibbsCGLA(numAtoms_, numChains, this);
    initTruthValues();
    for (int i = 0; i < NUM_THREADS; i++) {
@@ -50,6 +49,6 @@ void GibbsGist::finalize()
       }
    for (size_t i = 0; i < numAtoms; i++) {
       probs[i] = probs[i] / ((double)numChains * gGla->sample);
-      cout << "probability " << i << " = " << probs[i] << endl;
+      //cout << "probability " << i << " = " << probs[i] << endl;
    }
 }

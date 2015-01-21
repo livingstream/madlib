@@ -7,7 +7,7 @@ GibbsScheduler::GibbsScheduler(size_t chainId_, size_t inNumAtoms, size_t inNumC
    numAtoms = inNumAtoms;
    numClauses = inNumClauses;
    st = inState;
-   init(false);
+   init();
    /*stringstream ss;
    ss << "log" << chainId_;
    string str = ss.str();
@@ -23,15 +23,14 @@ GibbsScheduler::~GibbsScheduler()
 }
 
 
-void GibbsScheduler::init(bool warm)
+void GibbsScheduler::init()
 {
-   initTruthValuesAndWts(warm);
-   randomInitGndPredsTruthValues(warm);
+   initTruthValuesAndWts();
+   randomInitGndPredsTruthValues();
 }
 
-void GibbsScheduler::initTruthValuesAndWts(bool warm)
+void GibbsScheduler::initTruthValuesAndWts()
 {
-   if(!warm) {
       loc_wtsWhenFalse.resize(numAtoms,0);
       loc_wtsWhenTrue.resize(numAtoms,0);
       loc_numTrue.resize(numAtoms,0);
@@ -39,14 +38,10 @@ void GibbsScheduler::initTruthValuesAndWts(bool warm)
       loc_affectedGndPredFlag.resize(numAtoms, false);
       loc_truthValues.resize(numAtoms, false);
       loc_numTrueLits.resize(numClauses, 0);
-   } else {
-     std::fill(loc_numTrueLits.begin(), loc_numTrueLits.end(), 0);
-   }
 }
 
-void GibbsScheduler::randomInitGndPredsTruthValues(bool warm)
+void GibbsScheduler::randomInitGndPredsTruthValues()
 {
-   if(!warm)
    for (size_t i = 0; i < numAtoms; i++) {
      bool tv = genTruthValueForProb(0.5);
      loc_truthValues[i] = tv;
@@ -95,9 +90,6 @@ double GibbsScheduler::getProbabilityOfPred(const size_t &predIdx)
 
 void *GibbsScheduler::performGibbsStep()
 {
-   if(st->warmStart) { 
-      init(true);
-   }
    /*stringstream ss;
    ss << "log" << chainId_;
    string str = ss.str();

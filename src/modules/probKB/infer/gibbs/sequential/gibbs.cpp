@@ -13,7 +13,6 @@ class Gibbs {
 public:
     size_t numAtoms;
     size_t numClauses;
-    bool warmStart;
     VariableState *state;
     vector<bool> affectedGndPredFlag;
     vector<vector<bool> > truthValues;
@@ -47,12 +46,11 @@ public:
     // Convergence test for sampling
     ConvergenceTest **gibbsConvergenceTests;
 
-    Gibbs(size_t inNumAtoms, size_t inNumClauses, VariableState *inState, bool inWarmStart) {
+    Gibbs(size_t inNumAtoms, size_t inNumClauses, VariableState *inState) {
         GibbsParams *params = new GibbsParams();
         numAtoms = inNumAtoms;
         numClauses = inNumClauses;
         state = inState;
-        warmStart = inWarmStart;
         numChains = params->numChains;
         burnMinSteps = params->burnMinSteps;
         burnMaxSteps = params->burnMaxSteps;
@@ -82,13 +80,6 @@ public:
         initNumTrue();
         initConvergenceTests();
     }
-    void warmInit() {
-        for (size_t i = 0; i < numClauses; i++) {
-            std::fill(numTrueLits[i].begin(), numTrueLits[i].end(), 0);
-        }
-
-        initNumTrueLits();
-    }
 
     void initTruthValuesAndWts() {
         wtsWhenFalse.resize(numAtoms);
@@ -116,6 +107,7 @@ public:
                 bool tv = genTruthValueForProb(0.5);
                 // Truth values are stored differently for multi-chain
                 truthValues[i][c] = tv;
+                truthValues[i][c] = 1;
             }
         }
     }
@@ -308,9 +300,6 @@ public:
     }
 
     void *infer() {
-        if(warmStart) {
-           warmInit();
-        }
         Timer timer;
         bool burningIn = (burnMaxSteps > 0) ? true : false;
         double secondsElapsed = 0;

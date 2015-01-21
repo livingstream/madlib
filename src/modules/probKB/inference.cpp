@@ -90,18 +90,12 @@ public:
         }
         //TODO COPY THE world
         curSize += inOtherState.curSize;
-        if(inOtherState.warmStart == 1) {
-           warmStart = 1;
-           for(int i = 0; i < worlds.size(); i++) {
-               worlds[i] = inOtherState.worlds[i];
-           }
-        }
         return *this;
     }
 
 private:
     static inline uint32_t arraySize(const uint32_t numAtoms, const uint32_t size) {
-        return 6 + 23 * numAtoms + size;
+        return 5 + 2 * numAtoms + size;
     }
 
     void rebind(uint32_t inNumAtoms, uint32_t inSize) {
@@ -110,10 +104,8 @@ private:
         numAtoms.rebind(&mStorage[2]);
         size.rebind(&mStorage[3]);
         qid.rebind(&mStorage[4]);
-        warmStart.rebind(&mStorage[5]);
-        truth.rebind(&mStorage[6], inNumAtoms * 12);
-        worlds.rebind(&mStorage[6 + inNumAtoms * 12], inNumAtoms * 11);
-        clauses.rebind(&mStorage[6 + inNumAtoms * 23], inSize);
+        truth.rebind(&mStorage[5], inNumAtoms * 2);
+        clauses.rebind(&mStorage[5 + inNumAtoms * 2], inSize);
     }
     Handle mStorage;
 
@@ -123,9 +115,7 @@ public:
     typename HandleTraits<Handle>::ReferenceToUInt64 numAtoms;
     typename HandleTraits<Handle>::ReferenceToUInt64 size;
     typename HandleTraits<Handle>::ReferenceToInt64 qid;
-    typename HandleTraits<Handle>::ReferenceToInt64 warmStart;
     typename HandleTraits<Handle>::ColumnVectorTransparentHandleMap truth;
-    typename HandleTraits<Handle>::ColumnVectorTransparentHandleMap worlds;
     typename HandleTraits<Handle>::ColumnVectorTransparentHandleMap clauses;
 };
 
@@ -140,14 +130,6 @@ gibbs_step_transition::run(AnyType &args)
     MappedColumnVector clause = args[1].getAs<MappedColumnVector>();
     int clauseSize = static_cast<int>(clause.size());
     double weight = args[2].getAs<double>();
-    // if weight is 0.0, this row contains warm start probability
-    if(weight == 0.0) {
-       for (int i = 0; i < clauseSize; i++) {
-            state.worlds[i] = clause[i];
-       }
-       state.warmStart = 1;
-       return state ;
-    }
 
     int component = static_cast<uint32_t>(args[3].getAs<double>());
     if (state.numRows == 0) {
@@ -210,9 +192,9 @@ gibbs_step_final::run(AnyType &args)
     while (i < static_cast<size_t>(state.clauses.size())) {
         GroundClause *gc = new GroundClause();
         size_t clauseSize =  static_cast<size_t>(state.clauses[i]);
-        gc->wt_ = state.clauses[i + 1];
+        gc->wt_ = state.clauses[i + 1] / 10;
         gc->component = static_cast<size_t>(state.clauses[i + 2]);
-        //ss << "w = " << gc->wt_ << " clause = ";
+        ss << "w = " << gc->wt_ << " clause = ";
         i += 3;
         for (size_t j = 0; j < clauseSize; j++) {
              int oriId = static_cast<int>(state.clauses[i + j]);
@@ -222,59 +204,30 @@ gibbs_step_final::run(AnyType &args)
                  reverseIndexMap[newId] = abs(oriId);
              }
              gc->gndPreds.push_back(indexMap[abs(oriId)] * (oriId / abs(oriId)));
-             //ss << indexMap[abs(oriId)] * (oriId / abs(oriId)) << " ";
+             ss << indexMap[abs(oriId)] * (oriId / abs(oriId)) << " ";
         }
-        //ss << ";\n";
+        ss << ";\n";
         i += clauseSize;
         numClauses += 1;
         varState->gndClauses_->push_back(gc);
     }
-    ss << "clause size" << numClauses << "\n";
+    //ss << "clause size" << numClauses << "\n";
     //throw std::logic_error(ss.str());
 
     varState->init();
-    bool warm = (bool)state.warmStart;
     if(parallel) {
-       GibbsGist instance(state.numAtoms, numClauses, varState, warm);
-       if(warm) {
-         for(size_t i = 0; i < (size_t)(state.worlds.size()/11); i++) {
-            if(indexMap.count((int)state.worlds[11 * i]) == 0) continue;
-            int newId = indexMap[(int)state.worlds[11 * i]];
-            ss << newId << " ";
-            for(int j = 0; j < 10; j++) {
-               instance.gibbsVec[j]->loc_truthValues[newId - 1] = state.worlds[11 * i + j + 1];
-            }
-         }
-       }
+       GibbsGist instance(state.numAtoms, numClauses, varState);
        instance.infer();
        for(size_t i = 0; i < state.numAtoms; i++) {
-           state.truth[i * 12] = (double)reverseIndexMap[i+1];
-           state.truth[i * 12 + 1] = instance.probs[i];
-           for(int j = 0; j < 10; j++) {
-               state.truth[i * 12 + 2 + j] = instance.gibbsVec[j]->loc_truthValues[i]; 
-           } 
+           state.truth[i * 2] = (double)reverseIndexMap[i+1];
+           state.truth[i * 2 + 1] = instance.probs[i];
        }
     } else {
-       Gibbs instance(state.numAtoms, numClauses, varState, warm);
-       if(warm) {
-         for(size_t i = 0; i < (size_t) (state.worlds.size()/11); i++) {
-            std::stringstream ss;
-            if(indexMap.count((int)state.worlds[11 * i]) == 0) continue;
-            int newId = indexMap[(int)state.worlds[11 * i]];
-            ss << newId << " ";
-            for(int j = 0; j < 10; j++) {
-                instance.truthValues[newId - 1][j] = state.worlds[11 * i + j + 1];
-            }
-            //throw std::logic_error(ss.str());
-         }
-       }
+       Gibbs instance(state.numAtoms, numClauses, varState);
        instance.infer();
        for(i = 0; i < state.numAtoms; i++) {
-           state.truth[i * 12] = (double)reverseIndexMap[i+1];
-           state.truth[i * 12 + 1] = instance.numTrue[i];
-           for(int j = 0; j < 10; j++) {
-               state.truth[i * 12 + 2 + j] = instance.truthValues[i][j]; 
-           } 
+           state.truth[i * 2] = (double)reverseIndexMap[i+1];
+           state.truth[i * 2 + 1] = instance.numTrue[i];
        }
     } 
 

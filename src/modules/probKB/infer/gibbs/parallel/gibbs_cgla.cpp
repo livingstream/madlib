@@ -27,7 +27,7 @@ GibbsCGLA::~GibbsCGLA()
 
 bool GibbsCGLA::shouldIterate()
 {
-   cout << "sample = " << sample << endl;
+   //cout << "sample = " << sample << endl;
    sample += para->samplesPerTest;
    currentTimeSec = timer.time();
    secondsElapsed = currentTimeSec - startTimeSec;

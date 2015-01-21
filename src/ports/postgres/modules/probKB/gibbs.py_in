@@ -59,21 +59,22 @@ def compute_gibbs(schema_madlib, source, clause, weight, component, num_atom, st
 
 def init(schema_madlib, clause_tbl, **kwargs):
     plpy.notice("enter init")
+    plpy.execute("""DROP TABLE IF EXISTS cnum_lit, lit_cnums, atom_path""")
     plpy.execute("""CREATE INDEX cnum_idx ON {clause_tbl} (cnum)""".format(clause_tbl = clause_tbl))
     plpy.execute("""ANALYZE {clause_tbl}""".format(clause_tbl = clause_tbl))
 
-    plpy.execute("""CREATE TEMP TABLE cnum_lit AS
+    plpy.execute("""CREATE TABLE cnum_lit AS
                     SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len 
                     FROM {clause_tbl}""".format(clause_tbl = clause_tbl))
     plpy.execute('CREATE INDEX lit_idx ON cnum_lit (lit)')
 
-    plpy.execute("""CREATE TEMP TABLE lit_cnums AS
+    plpy.execute("""CREATE TABLE lit_cnums AS
                     SELECT lit, array_agg(cnum) cnums, array_agg(len) lens
                     FROM cnum_lit
                     GROUP BY lit""")
     plpy.execute('CREATE INDEX lit_cnums_indx ON lit_cnums (lit)')
 
-    plpy.execute("""CREATE TEMP TABLE atom_path AS
+    plpy.execute("""CREATE TABLE atom_path AS
                     SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex, count(*) cnt
                     FROM cnum_lit c1, cnum_lit c2 
                     WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
@@ -91,10 +92,11 @@ def init(schema_madlib, clause_tbl, **kwargs):
 
 def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
     plpy.execute("""DROP TABLE IF EXISTS delta_cnum_lit, new_lit, retrive_lit, delta_atom_path""")
+    plpy.execute("""DROP VIEW IF EXISTS temp_atom_path""")
 
     plpy.execute("""CREATE TEMP TABLE delta_cnum_lit AS
                     SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len 
-                    FROM {delta_clause_tbl}""".format(clause_tbl = clause_tbl))
+                    FROM {delta_clause_tbl}""".format(delta_clause_tbl = delta_clause_tbl))
     plpy.execute('CREATE INDEX delta_lit_idx ON delta_cnum_lit (lit)')
 
     plpy.execute("""INSERT INTO cnum_lit
@@ -121,26 +123,25 @@ def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
                     GROUP BY lit""")
 
     plpy.execute("""CREATE TEMP TABLE delta_atom_path AS
-                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex
+                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex, count(*) cnt
                     FROM delta_cnum_lit c1, delta_cnum_lit c2 
-                    WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit""")
-
+                    WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
+                    GROUP BY c1.lit, c2.lit""")
+    
     plpy.execute('CREATE INDEX delta_unique_idx ON delta_atom_path (uindex)')
 
-    plpy.execute("""UPDATE atom_path
-                    SET cnt = cnt + 1 
-                    where exists (
-                       select * from delta_atom_path delta 
-                       where uindex = delta.uindex)
-                 """)
+    plpy.execute("""CREATE VIEW temp_atom_path AS
+                    SELECT * from atom_path
+                    UNION 
+                    SELECT * FROM delta_atom_path""")
 
+    plpy.execute("""TRUNCATE atom_path""")
+   
     plpy.execute("""INSERT INTO atom_path
-                    select src, des, 1 
-                    FROM delta_atom_path delta
-                    where not exists (
-                       select * from atom_path 
-                       where atom_path.uindex = delta.uindex)
-                 """)
+                    select src, des, uindex, sum(cnt) cnt
+                    FROM temp_atom_path
+                    GROUP BY src, des, uindex""")
+    plpy.execute("""DROP VIEW IF EXISTS temp_atom_path""")
 
 def dec_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
     plpy.execute("""DROP TABLE IF EXISTS delta_cnum_lit, new_lit, retrive_lit, delta_atom_path""")
@@ -149,6 +150,7 @@ def dec_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
                     SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len 
                     FROM {delta_clause_tbl}""".format(delta_clause_tbl = delta_clause_tbl))
     plpy.execute('CREATE INDEX delta_lit_idx ON delta_cnum_lit (lit)')
+    plpy.execute('CREATE INDEX delta_cnum_idx ON delta_cnum_lit (cnum)')
 
     plpy.execute("""DELETE 
                     FROM cnum_lit
@@ -175,14 +177,15 @@ def dec_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
                     GROUP BY lit""")
 
     plpy.execute("""CREATE TEMP TABLE delta_atom_path AS
-                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex
+                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex, count(*) cnt
                     FROM delta_cnum_lit c1, delta_cnum_lit c2 
-                    WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit""")
+                    WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
+                    GROUP BY c1.lit, c2.lit""")
 
     plpy.execute('CREATE INDEX delta_unique_idx ON delta_atom_path (uindex)')
 
     plpy.execute("""UPDATE atom_path
-                    SET cnt = cnt - 1 
+                    SET cnt = atom_path.cnt - delta.cnt 
                     FROM delta_atom_path delta
                     WHERE  atom_path.uindex = delta.uindex""")
 
@@ -269,9 +272,9 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, **kwargs):
                           WHERE array_length((result).truth, 1) != 0) U 
                  """.format(schema_madlib = schema_madlib))
 
-    rv = plpy.execute("""SELECT prob[idx * 12 - 10] prob
-                         FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1) / 12) idx
-                         WHERE (prob[idx * 12 - 11] ::INT) = {qid}""".format(qid = str(qid)))
+    rv = plpy.execute("""SELECT prob[idx * 2] prob
+                         FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1) / 2) idx
+                         WHERE (prob[idx * 2 - 1] ::INT) = {qid}""".format(qid = str(qid)))
 
     n7=time.time() 
     plpy.notice("L6: " + str(n7-n6))
@@ -347,8 +350,8 @@ def batch_infer(schema_madlib, clause_tbl, truth_tbl, parallel, **kwargs):
                  """.format(schema_madlib = schema_madlib))
 
     plpy.execute("""CREATE TABLE {truth_tbl} AS
-                    SELECT (prob[idx * 12 - 11] :: INT) lit, prob[idx * 12 - 10] prob, prob[idx * 12 - 9 : idx * 12] :: INT[] worlds
-                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/12) idx
+                    SELECT (prob[idx * 2 - 1] :: INT) lit, prob[idx * 2] prob
+                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/2) idx
                  """.format(truth_tbl = truth_tbl))
 
     return "batch infer is done!"
@@ -408,8 +411,8 @@ def dec_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
                  """.format(schema_madlib = schema_madlib))
 
     plpy.execute("""CREATE TABLE {new_truth_tbl} AS
-                    SELECT (prob[idx * 12 - 11] :: INT) lit, prob[idx * 12 - 10] prob, prob[idx * 12 - 9 : idx * 12] worlds
-                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/12) idx
+                    SELECT (prob[idx * 2 - 1] :: INT) lit, prob[idx * 2] prob
+                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/2) idx
                  """.format(new_truth_tbl = new_truth_tbl))
 
     return "batch infer is done!"
@@ -456,8 +459,8 @@ def inc_delta_batch_infer(schema_madlib, clause_tbl, delta_clause_tbl, truth_tbl
                  """.format(schema_madlib = schema_madlib))
 
     plpy.execute("""CREATE TABLE {new_truth_tbl} AS
-                    SELECT (prob[idx * 12 - 11] :: INT), prob[idx * 12 - 10], prob[idx * 12 - 9 : idx * 12] worlds
-                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/12) idx
+                    SELECT (prob[idx * 2 - 1] :: INT), prob[idx * 2]
+                    FROM truth_tbl_tmp, generate_series(1, array_length(prob, 1)/2) idx
                  """.format(truth_tbl = truth_tbl))
 
     return "batch infer is done!"
@@ -507,7 +510,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
     components = [small, medium, large] 
     progress = 0
     hops = [1, 2, 5, 10, 20]
-    modes = [False, True]
+    modes = [False]
     for test in range(5):
       for mode in modes:
          for num_hop in hops:
