@@ -74,13 +74,14 @@ AS $$PythonFunction(probKB, gibbs, compute_gibbs)$$
 LANGUAGE plpythonu VOLATILE
 m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
 
-DROP FUNCTION  IF EXISTS MADLIB_SCHEMA.qdr_infer(TEXT, INTEGER, INTEGER, BOOL);
+DROP FUNCTION  IF EXISTS MADLIB_SCHEMA.qdr_infer(TEXT, INTEGER, INTEGER, BOOL, INTEGER);
 CREATE FUNCTION MADLIB_SCHEMA.qdr_infer(
      clause_tbl   TEXT, 
      num_hop      INTEGER,
      qid          INTEGER,
-     parallel     BOOL
-) RETURNS REAL AS $$
+     parallel     BOOL,
+     max_atom     INTEGER
+) RETURNS TEXT AS $$
 PythonFunction(probKB, gibbs, qdr_infer)
 $$ LANGUAGE plpythonu
 m4_ifdef(`__HAS_FUNCTION_PROPERTIES__', `MODIFIES SQL DATA', `');
