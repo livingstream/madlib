@@ -212,7 +212,7 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, max_atom, **kwa
                               AND depth < """ + str(num_hop) + """
                     )
                     INSERT INTO atoms
-                    SELECT id FROM path_cte WHERE cycle = false LIMIT """ + str(max_atom) + """)
+                    SELECT id FROM path_cte WHERE cycle = false LIMIT """ + str(max_atom))
     n3=time.time() 
     plpy.notice("L2: " + str(n3-n2))
    
