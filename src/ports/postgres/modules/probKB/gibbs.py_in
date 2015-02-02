@@ -89,7 +89,7 @@ def init(schema_madlib, clause_tbl, **kwargs):
                     FROM  cnum_comp_tbl c2 
                     WHERE c1.cnum = c2.cnum""".format(clause_tbl = clause_tbl))
     plpy.execute('CREATE TABLE ground_truth(atom int, prob real)')
-    plpy.execute("COPY ground_truth FROM '/home/kun/querydriven-probkb/dataset/prob'")
+    plpy.execute("COPY ground_truth FROM '/home/dsr/querydriven-probkb/dataset/prob'")
 
 def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
     plpy.execute("""DROP TABLE IF EXISTS delta_cnum_lit, new_lit, retrive_lit, delta_atom_path""")
