@@ -88,7 +88,8 @@ def init(schema_madlib, clause_tbl, **kwargs):
                     SET component = comp 
                     FROM  cnum_comp_tbl c2 
                     WHERE c1.cnum = c2.cnum""".format(clause_tbl = clause_tbl))
-
+    plpy.execute('CREATE TABLE ground_truth(atom int, prob real)')
+    plpy.execute("COPY ground_truth FROM '/home/kun/querydriven-probkb/dataset/prob'")
 
 def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
     plpy.execute("""DROP TABLE IF EXISTS delta_cnum_lit, new_lit, retrive_lit, delta_atom_path""")
@@ -490,30 +491,44 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                          FROM (SELECT DISTINCT abs(unnest(clause)) atom
                                FROM {clause_tbl}
                                WHERE component = {large}) U""".format(clause_tbl=clause_tbl,large=str(large))) 
-    largec_test_nodes = random.sample(rv[0]['atoms'], min(4, len(rv[0]['atoms'])))
+    largec_test_nodes = random.sample(rv[0]['atoms'], min(50, len(rv[0]['atoms'])))
     plpy.notice("large comonent size = " + str(len(rv[0]['atoms'])))
+
+    largecases = ""
+    for case in largec_test_nodes:
+        largecases = largecases + "," + str(case)
+    plpy.notice(largecases);
     
     # medium component
     rv = plpy.execute("""SELECT array_agg(atom order by atom) atoms
                          FROM (SELECT DISTINCT abs(unnest(clause)) atom
                                FROM {clause_tbl}
                                WHERE component = {medium}) U""".format(clause_tbl = clause_tbl, medium=str(medium))) 
-    mediumc_test_nodes = random.sample(rv[0]['atoms'], min(4, len(rv[0]['atoms'])))
+    mediumc_test_nodes = random.sample(rv[0]['atoms'], min(50, len(rv[0]['atoms'])))
     plpy.notice("medium comonent size = " + str(len(rv[0]['atoms'])))
+    
+    mediumcases = ""
+    for case in mediumc_test_nodes:
+        mediumcases = mediumcases + "," + str(case)
+    plpy.notice(mediumcases);
     
     # small component
     rv = plpy.execute("""SELECT array_agg(atom order by atom) atoms
                          FROM (SELECT DISTINCT abs(unnest(clause)) atom
                                FROM {clause_tbl}
                                WHERE component = {small}) U""".format(clause_tbl=clause_tbl,small=str(small))) 
-    smallc_test_nodes = random.sample(rv[0]['atoms'], min(4, len(rv[0]['atoms'])))
+    smallc_test_nodes = random.sample(rv[0]['atoms'], min(50, len(rv[0]['atoms'])))
     plpy.notice("small comonent size = " + str(len(rv[0]['atoms'])))
+    smallcases = ""
+    for case in smallc_test_nodes:
+        smallcases = smallcases + "," + str(case)
+    plpy.notice(smallcases);
 
     components = [small, medium, large] 
     progress = 0
     hops = [1, 2, 5, 10, 20]
     modes = [False]
-    for test in range(2):
+    for test in range(0):
       for mode in modes:
          for num_hop in hops:
              for comp in components:
@@ -531,7 +546,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
                                        """.format(schema_madlib = schema_madlib, clause_tbl = clause_tbl, 
                                            num_hop = str(num_hop), node = str(node), mode = str(mode)))       
                      prob = rv[0]['prob']
-                     rv = plpy.execute('SELECT prob FROM ground_truth WHERE atom = ' + str(node -1))
+                     rv = plpy.execute('SELECT prob FROM ground_truth WHERE atom = ' + str(node))
                      truth = rv[0]['prob']
                     
                      duration = time.time() - startTime
