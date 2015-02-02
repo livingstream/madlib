@@ -475,7 +475,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
     plpy.execute("""CREATE TABLE {result_tbl} (comp INT, lit INT, num_hop INT, time REAL, prob REAL, truth REAL, parallel BOOL)
                  """.format(result_tbl = result_tbl))
     plpy.execute('CREATE TABLE ground_truth(atom int, prob real)')
-    plpy.execute("COPY ground_truth FROM '/home/kun/querydriven-probkb/dataset/prob'")
+    plpy.execute("COPY ground_truth FROM '/home/dsr/querydriven-probkb/dataset/prob'")
     plpy.execute('CREATE INDEX ground_truth_idx ON ground_truth(atom)')
 
     rv = plpy.execute('SELECT COUNT(*) AS num_atom FROM lit_cnums')
