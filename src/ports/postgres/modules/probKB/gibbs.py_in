@@ -218,7 +218,7 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, max_atom, **kwa
     plpy.notice("L2: " + str(n3-n2))
    
     plpy.execute("""SELECT DISTINCT id 
-                    INTO   unique_atoms
+                    INTO  TEMP TABLE unique_atoms
                     FROM   atoms""") 
 
     plpy.execute('CREATE INDEX unique_atom_idx ON unique_atoms (id)')
