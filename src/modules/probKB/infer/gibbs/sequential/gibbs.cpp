@@ -321,7 +321,7 @@ public:
         bool done = false;
         while (!done) {
             ++sample;
-            cout << "number of samples = " << sample << endl;
+            //cout << "number of samples = " << sample << endl;
             //cout << "second elapsed = " << timer.time() - startTimeSec << endl;
             if (sample % samplesPerTest == 0) {
                 currentTimeSec = timer.time();

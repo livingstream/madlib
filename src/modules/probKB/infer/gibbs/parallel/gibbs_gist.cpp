@@ -14,6 +14,12 @@ GibbsGist::GibbsGist(size_t numAtoms_, size_t numClauses_, VariableState *varst_
    }
 }
 
+GibbsGist::~GibbsGist() {
+   for (int i = 0; i < NUM_THREADS; i++) {
+      delete gibbsVec[i];
+   }
+   delete gGla;
+} 
 
 void GibbsGist::initTruthValues()
 {

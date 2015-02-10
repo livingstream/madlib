@@ -18,6 +18,7 @@ GibbsCGLA::GibbsCGLA(size_t numAtoms_, size_t numChains_, GibbsGist *state_)
 
 GibbsCGLA::~GibbsCGLA()
 {
+   delete para;
    deleteConvergenceTests();
 }
 

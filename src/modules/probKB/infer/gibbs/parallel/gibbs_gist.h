@@ -34,7 +34,9 @@ public:
 
 public:
    GibbsGist(size_t numAtoms_, size_t numClauses_, VariableState *varst_);
-
+  
+   ~GibbsGist();
+ 
    void initTruthValues();
    
    void infer();

@@ -10,7 +10,7 @@ public:
         numAtoms = numAtoms_;
         gndClauses_ = new vector<GroundClause *>;
     }
-    ~VariableState() { }
+    ~VariableState() { delete gndClauses_; }
 
     void init() {
         occurence_.resize(2 * numAtoms + 1);

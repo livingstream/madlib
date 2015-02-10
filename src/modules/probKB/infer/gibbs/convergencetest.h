@@ -158,7 +158,7 @@ public:
             return false;
         } else {
             double frac = ((double)numConverged) / (numConverged + numNotConverged);
-            cout << "convergence ratio = " << frac << endl;
+            //cout << "convergence ratio = " << frac << endl;
             if (frac >= fracConverged) {
                 return true;
             } else {
