@@ -188,13 +188,13 @@ gibbs_step_final::run(AnyType &args)
     bool parallel = (abs(state.qid) % 2 == 1);
     state.qid = (int)(state.qid / 10);
     VariableState *varState = new VariableState(state.numAtoms);
-    std::stringstream ss;
+    //std::stringstream ss;
     while (i < static_cast<size_t>(state.clauses.size())) {
         GroundClause *gc = new GroundClause();
         size_t clauseSize =  static_cast<size_t>(state.clauses[i]);
         gc->wt_ = state.clauses[i + 1] / 10;
         gc->component = static_cast<size_t>(state.clauses[i + 2]);
-        ss << "w = " << gc->wt_ << " clause = ";
+        //ss << "w = " << gc->wt_ << " clause = ";
         i += 3;
         for (size_t j = 0; j < clauseSize; j++) {
              int oriId = static_cast<int>(state.clauses[i + j]);
@@ -204,15 +204,14 @@ gibbs_step_final::run(AnyType &args)
                  reverseIndexMap[newId] = abs(oriId);
              }
              gc->gndPreds.push_back(indexMap[abs(oriId)] * (oriId / abs(oriId)));
-             ss << indexMap[abs(oriId)] * (oriId / abs(oriId)) << " ";
+             //ss << indexMap[abs(oriId)] * (oriId / abs(oriId)) << " ";
         }
-        ss << ";\n";
+        //ss << ";\n";
         i += clauseSize;
         numClauses += 1;
         varState->gndClauses_->push_back(gc);
     }
     //ss << "clause size" << numClauses << "\n";
-    //throw std::logic_error(ss.str());
 
     varState->init();
     if(parallel) {
@@ -229,8 +228,12 @@ gibbs_step_final::run(AnyType &args)
            state.truth[i * 2] = (double)reverseIndexMap[i+1];
            state.truth[i * 2 + 1] = instance.numTrue[i];
        }
-    } 
+    }
 
+    for(int i =0 ; i < varState->gndClauses_->size(); i++) {
+        delete (*varState->gndClauses_)[i];
+    }
+    delete varState;
     return state;
 }
 
