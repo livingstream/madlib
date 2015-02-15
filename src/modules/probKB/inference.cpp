@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <map>
 #include <stdlib.h>
+#include <iostream>
+#include <fstream>
 
 namespace madlib {
 
@@ -127,6 +129,7 @@ AnyType
 gibbs_step_transition::run(AnyType &args)
 {
     inferenceTransitionState<MutableArrayHandle<double> > state = args[0];
+    try{
     MappedColumnVector clause = args[1].getAs<MappedColumnVector>();
     int clauseSize = static_cast<int>(clause.size());
     double weight = args[2].getAs<double>();
@@ -149,6 +152,9 @@ gibbs_step_transition::run(AnyType &args)
         state.clauses[state.curSize + i] = clause[i];
     }
     state.curSize += clauseSize;
+    } catch (std::exception& e) {
+      std::cout << "Exception catched in step: " << e.what() << std::endl;
+    }
     return state;
 }
 
@@ -159,6 +165,7 @@ AnyType
 gibbs_step_merge_states::run(AnyType &args)
 {
     inferenceTransitionState<MutableArrayHandle<double> > stateLeft = args[0];
+    try{
     inferenceTransitionState<ArrayHandle<double> > stateRight = args[1];
     // We first handle the trivial case where this function is called with one
     // of the states being the initial state
@@ -170,6 +177,9 @@ gibbs_step_merge_states::run(AnyType &args)
 
     // Merge states together and return
     stateLeft += stateRight;
+    } catch (std::exception& e) {
+      std::cout << "Exception catched in step: " << e.what() << std::endl;
+    }
     return stateLeft;
 }
 
@@ -178,9 +188,17 @@ AnyType
 gibbs_step_final::run(AnyType &args)
 {
     inferenceTransitionState<MutableArrayHandle<double> > state = args[0];
+try {
     if (state.numRows == 0) {
         return Null();
     }
+    //ofstream myfile;
+    //myfile.open("/home/livingstream/clauses.txt", ios::out | ios::app);
+    //for(int w =0; w<static_cast<size_t>(state.clauses.size()); w++) {
+    //   cout << state.clauses[w] << " ";
+    //}
+    //cout << std::endl;
+    //myfile.close();
     size_t i = 0;
     size_t numClauses = 0;
     std::map<int, int> indexMap;
@@ -212,7 +230,7 @@ gibbs_step_final::run(AnyType &args)
         varState->gndClauses_->push_back(gc);
     }
     //ss << "clause size" << numClauses << "\n";
-
+    state.numAtoms = indexMap.size();
     varState->init();
     if(parallel) {
        GibbsGist instance(state.numAtoms, numClauses, varState);
@@ -230,10 +248,9 @@ gibbs_step_final::run(AnyType &args)
        }
     }
 
-    for(int i =0 ; i < varState->gndClauses_->size(); i++) {
-        delete (*varState->gndClauses_)[i];
+    } catch (std::exception& e) {
+      std::cout << "Exception catched : " << e.what() << std::endl;
     }
-    delete varState;
     return state;
 }
 

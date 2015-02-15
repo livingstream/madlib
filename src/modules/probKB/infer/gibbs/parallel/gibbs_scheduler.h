@@ -13,17 +13,18 @@
 #include "../gibbsparams.h"
 #include <iostream>
 #include <fstream>
+#include<pthread.h>
 using namespace std;
 
 class GibbsGist;
 
 class GibbsScheduler {
 public:
+   static pthread_mutex_t lock;
    size_t numAtoms;
    size_t numClauses;
    const size_t chainId;
    GibbsGist *st;
-   ofstream f; 
 
    vector<bool> loc_truthValues;
    vector<double> loc_wtsWhenFalse;
@@ -55,6 +56,7 @@ public:
    void updateWtsForGndPreds(vector<size_t> &gndPredIndices);
 
    void gndPredFlippedUpdates(const size_t &gndPredIdx);
+   static inline void printLog(int threadId, char* msg);
 
 };
 #endif

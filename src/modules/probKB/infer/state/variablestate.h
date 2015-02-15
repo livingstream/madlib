@@ -3,14 +3,20 @@
 #include "groundclause.h"
 #include <vector>
 #include <stdlib.h>     /* abs */
-
+#include<iostream>
+using namespace std;
 class VariableState {
 public:
     VariableState(size_t numAtoms_) {
         numAtoms = numAtoms_;
         gndClauses_ = new vector<GroundClause *>;
     }
-    ~VariableState() { delete gndClauses_; }
+    ~VariableState() { 
+      for(int i =0 ; i < gndClauses_->size(); i++) {
+        delete (*gndClauses_)[i];
+      }
+      delete gndClauses_; 
+    }
 
     void init() {
         occurence_.resize(2 * numAtoms + 1);
@@ -20,6 +26,7 @@ public:
             for (size_t j = 0; j < numGndPreds; j++) {
                 int lit = getAtomInClause(j, i);
                 int litIdx = 2 * abs(lit) - (lit > 0);
+                if (litIdx >= occurence_.size()) std::cout << "out of bound exception" << std::endl;
                 occurence_[litIdx].push_back(i);
             }
         }
@@ -36,10 +43,12 @@ public:
     }
 
     vector<size_t> &getOccurenceVector(const size_t &idx) {
+        if (idx >= occurence_.size()) std::cout << "out of bound exception" << std::endl;
         return occurence_[idx];
     }
 
     size_t getNumTrueLits(const size_t &clauseIdx) {
+        if (clauseIdx >= numTrueLits_.size()) std::cout << "out of bound exception" << std::endl;
         return numTrueLits_[clauseIdx];
     }
 
@@ -48,6 +57,7 @@ public:
     }
 
     GroundClause *getGndClause(const size_t &index) {
+        if (index >= (*gndClauses_).size()) std::cout << "out of bound exception" << std::endl;
         return (*gndClauses_)[index];
     }
 

@@ -1,6 +1,7 @@
 #ifndef GROUNDCLAUSE_H_JUN_26_2005
 #define GROUNDCLAUSE_H_JUN_26_2005
 #include<vector>
+#include<iostream>
 using namespace std;
 
 class GroundClause {
@@ -12,9 +13,11 @@ public:
         return gndPreds.size();
     }
     int getGroundPredicateIndex(const size_t &i) const {
+        if(i>=gndPreds.size()) cout << "out of bound exception" << endl;
         return gndPreds[i];
     }
     bool getGroundPredicateSense(const size_t &i) const {
+        if(i>=gndPreds.size()) cout << "out of bound exception" << endl;
         return (gndPreds[i] > 0);
     }
 

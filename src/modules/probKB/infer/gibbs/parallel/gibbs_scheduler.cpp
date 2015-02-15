@@ -8,6 +8,10 @@ GibbsScheduler::GibbsScheduler(size_t chainId_, size_t inNumAtoms, size_t inNumC
    numClauses = inNumClauses;
    st = inState;
    init();
+   for (size_t i = 0; i < numAtoms; i++) {
+      loc_affectedGndPredIndices.push_back(i);
+   }
+   updateWtsForGndPreds(loc_affectedGndPredIndices);
    /*stringstream ss;
    ss << "log" << chainId_;
    string str = ss.str();
@@ -84,9 +88,13 @@ bool GibbsScheduler::genTruthValueForProb(const double &p)
  */
 double GibbsScheduler::getProbabilityOfPred(const size_t &predIdx)
 {
+   if (predIdx >= loc_wtsWhenFalse.size()) {
+      cout << "out of bound exception" << endl;
+   }
    return 1.0 / (1.0 +
                  exp(loc_wtsWhenFalse[predIdx] - loc_wtsWhenTrue[predIdx]));
 }
+
 
 void *GibbsScheduler::performGibbsStep()
 {
@@ -98,10 +106,6 @@ void *GibbsScheduler::performGibbsStep()
    f << "initialized truth value = " << loc_truthValues[0] << endl;
    f << "numTrueLits = " << loc_numTrueLits[0] << endl;*/     
 
-   for (size_t i = 0; i < numAtoms; i++) {
-      loc_affectedGndPredIndices.push_back(i);
-   }
-   updateWtsForGndPreds(loc_affectedGndPredIndices);
    loc_affectedGndPredIndices.clear();
 
    int sample = 0;
@@ -109,6 +113,9 @@ void *GibbsScheduler::performGibbsStep()
      sample++; 
      for (size_t i = 0; i < numAtoms; i++) {
         bool newAssign = genTruthValueForProb(getProbabilityOfPred(i));
+        if (i >= loc_truthValues.size()) {
+          cout << "out of bound exception" << endl;
+        }
         bool truthValue = loc_truthValues[i];
         if (newAssign != truthValue) {
            loc_truthValues[i] = newAssign;
@@ -118,8 +125,14 @@ void *GibbsScheduler::performGibbsStep()
            updateWtsForGndPreds(loc_affectedGndPredIndices);
         }
         if (newAssign) {
+            if (i >= loc_numTrueTemp.size()) {
+              cout << "out of bound exception" << endl;
+            }
             loc_numTrueTemp[i]+=1;
             if(!st->gGla->burnIn) {
+              if (i >= loc_numTrue.size()) {
+                cout << "out of bound exception" << endl;
+              }
               loc_numTrue[i]++;
             }
         }
@@ -152,7 +165,10 @@ void GibbsScheduler::updateWtsForGndPreds(vector<size_t> &gndPredIndices)
          }
 
          GroundClause *gndClause = st->varst->getGndClause(gndClauseIdx);
-         wt = gndClause->wt_;
+         wt = gndClause->wt_;  
+         if (gndClauseIdx >= loc_numTrueLits.size()) {
+            cout << "out of bound exception" << endl;
+         }
          int numSatLiterals = loc_numTrueLits[gndClauseIdx];
          if (numSatLiterals > 1) {
             if (wt > 0) {
@@ -162,6 +178,9 @@ void GibbsScheduler::updateWtsForGndPreds(vector<size_t> &gndPredIndices)
          } else if (numSatLiterals == 1) {
             if (wt > 0) {
                wtIfNoChange += wt;
+            }
+            if (gndPredIndices[g] >= loc_truthValues.size()) {
+               cout << "out of bound exception" << endl;
             }
             bool truthValue = loc_truthValues[gndPredIndices[g]];
             if (truthValue == sense) {
@@ -186,6 +205,9 @@ void GibbsScheduler::updateWtsForGndPreds(vector<size_t> &gndPredIndices)
          }
       } // for each ground clause that gndPred appears in
 
+      if (gndPredIndices[g] >= loc_truthValues.size() || gndPredIndices[g] >= loc_wtsWhenTrue.size()) {
+         cout << "out of bound exception" << endl;
+      }
       // Clause info is stored differently for multi-chain
       if (loc_truthValues[gndPredIndices[g]]) {
          loc_wtsWhenTrue[gndPredIndices[g]] = wtIfNoChange;
@@ -220,6 +242,8 @@ void GibbsScheduler::gndPredFlippedUpdates(const size_t &gndPredIdx)
          sense = true;
       }
       gndClause = st->varst->getGndClause(gndClauseIdx);
+      if (gndPredIdx >= loc_truthValues.size() || gndClauseIdx >= loc_numTrueLits.size())
+         cout << "out of bound exception" << endl;
       if (loc_truthValues[gndPredIdx] == sense) {
          loc_numTrueLits[gndClauseIdx]++;
       } else {
@@ -228,6 +252,7 @@ void GibbsScheduler::gndPredFlippedUpdates(const size_t &gndPredIdx)
 
       for (size_t j = 0; j < gndClause->getNumGroundPredicates(); j++) {
          size_t predIndex = abs(gndClause->getGroundPredicateIndex(j)) - 1;
+         if (predIndex >= loc_affectedGndPredFlag.size()) cout << "out of bound exception" << endl;
          if (!loc_affectedGndPredFlag[ predIndex ]) {
             loc_affectedGndPredIndices.push_back(predIndex);
             loc_affectedGndPredFlag[predIndex] = true;

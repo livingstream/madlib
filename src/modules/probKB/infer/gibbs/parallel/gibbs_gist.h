@@ -8,26 +8,18 @@
 #include "gibbs_cgla.h"
 #include "../../state/variablestate.h"
 using namespace std;
-#define NUM_THREADS 10
+#define NUM_THREADS 10 
 
 class GibbsGist {
 public:
    pthread_t threads[NUM_THREADS];
-   vector<GibbsScheduler *> localSchedulers;
    GibbsCGLA *gGla;
-   vector<GibbsCGLA *> glaVec;
    vector<GibbsScheduler *> gibbsVec;
-   vector<vector< bool> > truthValues;
-   vector<vector<double> > wtsWhenFalse;
-   vector<vector<double> > wtsWhenTrue;
-   vector<vector<double> > numTrue;
    vector<vector<double> > numTrueTemp;
-   vector<vector<bool> > affectedGndPredFlag;
-   vector<vector<int> > numTrueLits;
-   vector<vector<size_t> > affectedGndPredIndices;
    VariableState *varst;
    vector<double> probs;
 
+   vector<vector<double> > numTrue;
    size_t numAtoms;
    size_t numClauses;
    size_t numChains;

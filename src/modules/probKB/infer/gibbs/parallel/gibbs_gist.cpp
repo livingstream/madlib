@@ -15,6 +15,7 @@ GibbsGist::GibbsGist(size_t numAtoms_, size_t numClauses_, VariableState *varst_
 }
 
 GibbsGist::~GibbsGist() {
+   delete varst;
    for (int i = 0; i < NUM_THREADS; i++) {
       delete gibbsVec[i];
    }
@@ -36,9 +37,11 @@ void GibbsGist::infer()
 {
    do {
       for (int i = 0; i < NUM_THREADS; i++) {
-         pthread_create(&threads[i], 0, &GibbsScheduler::callMemberFunction, gibbsVec[i]);
+         int rc = pthread_create(&threads[i], 0, &GibbsScheduler::callMemberFunction, gibbsVec[i]);
+         if (rc) {
+            cout << "ERROR; pthread_create() return" ;
+         } 
       }
-
       for (int i = 0; i < NUM_THREADS; i++) {
          pthread_join(threads[i], NULL);
       }
