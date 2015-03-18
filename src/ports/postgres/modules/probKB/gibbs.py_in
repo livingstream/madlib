@@ -210,7 +210,7 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, max_atom, **kwa
                        UNION ALL
                        SELECT nxt.des, depth+1, path || nxt.des, nxt.des = ANY(path)
                        FROM atom_path nxt, path_cte prv
-                       WHERE  nxt.src = prv.id AND NOT cycle AND nxt.srcprob < 1.0 
+                       WHERE  nxt.src = prv.id AND NOT cycle AND nxt.srcprob <= 0.99 
                               AND depth < """ + str(num_hop) + """
                     )
                     INSERT INTO atoms
@@ -289,7 +289,7 @@ def init_comp():
     plpy.execute("""CREATE TABLE components_to_merge AS
                     SELECT src comp1, des comp2 
                     FROM atom_path 
-                    WHERE srcprob < 1.0 AND desprob < 1.0""")
+                    WHERE srcprob <= 0.99 AND desprob <= 0.99""")
     
     plpy.execute("""CREATE TABLE lit_component AS
                     SELECT lit, lit AS comp, cnums
@@ -317,7 +317,7 @@ def init_comp():
           SELECT DISTINCT t1.comp, t2.comp 
           FROM atom_path join lit_component t1 on atom_path.src = t1.lit 
                          join lit_component t2 on atom_path.des = t2.lit 
-          WHERE t1.comp != t2.comp AND srcprob < 1.0 AND desprob < 1.0""")
+          WHERE t1.comp != t2.comp AND srcprob <= 0.99 AND desprob <= 0.99""")
           rv = plpy.execute('SELECT COUNT(*) AS cnt FROM components_to_merge')
     
     plpy.execute("""CREATE TABLE cnum_comp_tbl AS
