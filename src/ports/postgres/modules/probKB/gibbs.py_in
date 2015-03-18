@@ -64,7 +64,7 @@ def init(schema_madlib, clause_tbl, **kwargs):
     plpy.execute("""ANALYZE {clause_tbl}""".format(clause_tbl = clause_tbl))
 
     plpy.execute("""CREATE TABLE cnum_lit AS
-                    SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len 
+                    SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len, unnest(probs) prob
                     FROM {clause_tbl}""".format(clause_tbl = clause_tbl))
     plpy.execute('CREATE INDEX lit_idx ON cnum_lit (lit)')
 
@@ -74,11 +74,12 @@ def init(schema_madlib, clause_tbl, **kwargs):
                     GROUP BY lit""")
     plpy.execute('CREATE INDEX lit_cnums_indx ON lit_cnums (lit)')
 
+    # we require that every atom has a prior as in NELL dataset
     plpy.execute("""CREATE TABLE atom_path AS
-                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex, count(*) cnt
-                    FROM cnum_lit c1, cnum_lit c2 
+                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex, count(*) cnt, c1.prob srcprob, c2.prob desprob
+                    FROM cnum_lit c1, cnum_lit c2, cnum_lit c3, cnum_lit c4 
                     WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
-                    GROUP BY c1.lit, c2.lit""")
+                    GROUP BY c1.lit, c2.lit, c1.prob, c2.prob""")
     plpy.execute('CREATE INDEX src_idx ON atom_path (src)')
     plpy.execute('CREATE INDEX unique_idx ON atom_path (uindex)')
     
@@ -89,7 +90,7 @@ def init(schema_madlib, clause_tbl, **kwargs):
                     FROM  cnum_comp_tbl c2 
                     WHERE c1.cnum = c2.cnum""".format(clause_tbl = clause_tbl))
     plpy.execute('CREATE TABLE ground_truth(atom int, prob real)')
-    plpy.execute("COPY ground_truth FROM '/home/dsr/querydriven-probkb/dataset/prob'")
+    plpy.execute("COPY ground_truth FROM '/home/livingstream/querydriven-probkb/dataset/prob'")
 
 def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
     plpy.execute("""DROP TABLE IF EXISTS delta_cnum_lit, new_lit, retrive_lit, delta_atom_path""")
@@ -209,7 +210,7 @@ def qdr_infer(schema_madlib, clause_tbl, num_hop, qid, parallel, max_atom, **kwa
                        UNION ALL
                        SELECT nxt.des, depth+1, path || nxt.des, nxt.des = ANY(path)
                        FROM atom_path nxt, path_cte prv
-                       WHERE  nxt.src = prv.id AND NOT cycle 
+                       WHERE  nxt.src = prv.id AND NOT cycle AND nxt.srcprob < 1.0 
                               AND depth < """ + str(num_hop) + """
                     )
                     INSERT INTO atoms
@@ -287,7 +288,8 @@ def init_comp():
     plpy.execute('DROP TABLE IF EXISTS components_to_merge, lit_component, cnum_comp_tbl')
     plpy.execute("""CREATE TABLE components_to_merge AS
                     SELECT src comp1, des comp2 
-                    FROM atom_path""")
+                    FROM atom_path 
+                    WHERE srcprob < 1.0 AND desprob < 1.0""")
     
     plpy.execute("""CREATE TABLE lit_component AS
                     SELECT lit, lit AS comp, cnums
@@ -315,7 +317,7 @@ def init_comp():
           SELECT DISTINCT t1.comp, t2.comp 
           FROM atom_path join lit_component t1 on atom_path.src = t1.lit 
                          join lit_component t2 on atom_path.des = t2.lit 
-          WHERE t1.comp != t2.comp""")
+          WHERE t1.comp != t2.comp AND srcprob < 1.0 AND desprob < 1.0""")
           rv = plpy.execute('SELECT COUNT(*) AS cnt FROM components_to_merge')
     
     plpy.execute("""CREATE TABLE cnum_comp_tbl AS
@@ -475,7 +477,7 @@ def qdr_infer_eval(schema_madlib, clause_tbl, result_tbl, **kwargs):
     plpy.execute("""CREATE TABLE {result_tbl} (comp INT, lit INT, num_hop INT, time REAL, prob REAL, truth REAL, parallel BOOL)
                  """.format(result_tbl = result_tbl))
     plpy.execute('CREATE TABLE ground_truth(atom int, prob real)')
-    plpy.execute("COPY ground_truth FROM '/home/dsr/querydriven-probkb/dataset/prob'")
+    plpy.execute("COPY ground_truth FROM '/home/livingstream/querydriven-probkb/dataset/prob'")
     plpy.execute('CREATE INDEX ground_truth_idx ON ground_truth(atom)')
 
     rv = plpy.execute('SELECT COUNT(*) AS num_atom FROM lit_cnums')
