@@ -76,21 +76,21 @@ def init(schema_madlib, clause_tbl, **kwargs):
 
     # we require that every atom has a prior as in NELL dataset
     plpy.execute("""CREATE TABLE atom_path AS
-                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex, count(*) cnt, c1.prob srcprob, c2.prob desprob
+                    SELECT c1.lit src, c2.lit des, c1.lit * 300000.0 + c2.lit uindex, count(*) cnt, c1.prob srcprob, c2.prob desprob
                     FROM cnum_lit c1, cnum_lit c2, cnum_lit c3, cnum_lit c4 
                     WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
                     GROUP BY c1.lit, c2.lit, c1.prob, c2.prob""")
     plpy.execute('CREATE INDEX src_idx ON atom_path (src)')
     plpy.execute('CREATE INDEX unique_idx ON atom_path (uindex)')
     
-    init_comp()
-    plpy.notice('init_comp finishes')
-    plpy.execute("""UPDATE {clause_tbl} c1
-                    SET component = comp 
-                    FROM  cnum_comp_tbl c2 
-                    WHERE c1.cnum = c2.cnum""".format(clause_tbl = clause_tbl))
-    plpy.execute('CREATE TABLE ground_truth(atom int, prob real)')
-    plpy.execute("COPY ground_truth FROM '/home/livingstream/querydriven-probkb/dataset/prob'")
+    #init_comp()
+    #plpy.notice('init_comp finishes')
+    #plpy.execute("""UPDATE {clause_tbl} c1
+    #                SET component = comp 
+    #                FROM  cnum_comp_tbl c2 
+    #                WHERE c1.cnum = c2.cnum""".format(clause_tbl = clause_tbl))
+    #plpy.execute('CREATE TABLE ground_truth(atom int, prob real)')
+    #plpy.execute("COPY ground_truth FROM '/home/livingstream/querydriven-probkb/dataset/prob'")
 
 def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
     plpy.execute("""DROP TABLE IF EXISTS delta_cnum_lit, new_lit, retrive_lit, delta_atom_path""")
@@ -125,7 +125,7 @@ def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
                     GROUP BY lit""")
 
     plpy.execute("""CREATE TEMP TABLE delta_atom_path AS
-                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex, count(*) cnt
+                    SELECT c1.lit src, c2.lit des, c1.lit * 300000.0 + c2.lit uindex, count(*) cnt
                     FROM delta_cnum_lit c1, delta_cnum_lit c2 
                     WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
                     GROUP BY c1.lit, c2.lit""")
@@ -179,7 +179,7 @@ def dec_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
                     GROUP BY lit""")
 
     plpy.execute("""CREATE TEMP TABLE delta_atom_path AS
-                    SELECT c1.lit src, c2.lit des, c1.lit * 100000.0 + c2.lit uindex, count(*) cnt
+                    SELECT c1.lit src, c2.lit des, c1.lit * 300000.0 + c2.lit uindex, count(*) cnt
                     FROM delta_cnum_lit c1, delta_cnum_lit c2 
                     WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
                     GROUP BY c1.lit, c2.lit""")
