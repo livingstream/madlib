@@ -74,12 +74,14 @@ def init(schema_madlib, clause_tbl, **kwargs):
                     GROUP BY lit""")
     plpy.execute('CREATE INDEX lit_cnums_indx ON lit_cnums (lit)')
 
+    plpy.notice('atom path begins')
     # we require that every atom has a prior as in NELL dataset
     plpy.execute("""CREATE TABLE atom_path AS
                     SELECT c1.lit src, c2.lit des, c1.lit * 300000.0 + c2.lit uindex, count(*) cnt, c1.prob srcprob, c2.prob desprob
-                    FROM cnum_lit c1, cnum_lit c2, cnum_lit c3, cnum_lit c4 
+                    FROM cnum_lit c1, cnum_lit c2 
                     WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
                     GROUP BY c1.lit, c2.lit, c1.prob, c2.prob""")
+    plpy.notice('atom path ends')
     plpy.execute('CREATE INDEX src_idx ON atom_path (src)')
     plpy.execute('CREATE INDEX unique_idx ON atom_path (uindex)')
     
@@ -97,7 +99,7 @@ def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
     plpy.execute("""DROP VIEW IF EXISTS temp_atom_path""")
 
     plpy.execute("""CREATE TEMP TABLE delta_cnum_lit AS
-                    SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len 
+                    SELECT cnum, abs(unnest(clause)) lit, array_length(clause, 1) len, unnest(probs) prob
                     FROM {delta_clause_tbl}""".format(delta_clause_tbl = delta_clause_tbl))
     plpy.execute('CREATE INDEX delta_lit_idx ON delta_cnum_lit (lit)')
 
@@ -125,10 +127,10 @@ def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
                     GROUP BY lit""")
 
     plpy.execute("""CREATE TEMP TABLE delta_atom_path AS
-                    SELECT c1.lit src, c2.lit des, c1.lit * 300000.0 + c2.lit uindex, count(*) cnt
+                    SELECT c1.lit src, c2.lit des, c1.lit * 300000.0 + c2.lit uindex, count(*) cnt, c1.prob srcprob, c2.prob desprob
                     FROM delta_cnum_lit c1, delta_cnum_lit c2 
                     WHERE c1.cnum = c2.cnum and c1.lit <> c2.lit
-                    GROUP BY c1.lit, c2.lit""")
+                    GROUP BY c1.lit, c2.lit, c1.prob, c2.prob""")
     
     plpy.execute('CREATE INDEX delta_unique_idx ON delta_atom_path (uindex)')
 
@@ -140,9 +142,9 @@ def inc_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
     plpy.execute("""TRUNCATE atom_path""")
    
     plpy.execute("""INSERT INTO atom_path
-                    select src, des, uindex, sum(cnt) cnt
+                    select src, des, uindex, sum(cnt) cnt, srcprob, desprob
                     FROM temp_atom_path
-                    GROUP BY src, des, uindex""")
+                    GROUP BY src, des, uindex, srcprob, desprob""")
     plpy.execute("""DROP VIEW IF EXISTS temp_atom_path""")
 
 def dec_delta_init(schema_madlib, delta_clause_tbl, **kwargs):
